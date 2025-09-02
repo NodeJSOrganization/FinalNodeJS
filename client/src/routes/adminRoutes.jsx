@@ -29,7 +29,6 @@ const adminRoutes = [
       { path: 'users', element: <UserManagementPage /> },
       { path: 'users/add', element: <AddUserPage /> },
       { path: 'orders', element: <OrderManagementPage /> },
-      { path: 'inventory', element: <InventoryManagementPage /> },
       { path: 'discounts', element: <DiscountManagementPage /> },
        { path: 'discounts/add', element: <AddDiscountPage /> },
       { path: 'promotions', element: <PromotionManagementPage /> },
