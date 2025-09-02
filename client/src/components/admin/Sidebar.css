@@ -1,0 +1,201 @@
+/* src/components/admin/Sidebar.css (Phiên bản cuối cùng) */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text-color);
+  transition: width 0.3s ease-in-out;
+  height: 100vh; 
+  box-shadow: 0.1rem 0 1rem rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+}
+
+.sidebar-header {
+  padding: 15px 20px;
+  background: var(--sidebar-header-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-logo {
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sidebar.collapsed .sidebar-logo span {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-logo span:first-child {
+  display: inline;
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  color: var(--sidebar-text-color);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.sidebar ul.components {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 15px 0;
+}
+
+.sidebar ul li a {
+  padding: 15px 20px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--sidebar-text-color);
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar.collapsed ul li a span,
+.sidebar.collapsed .dropdown-icon {
+  display: none;
+}
+
+.sidebar ul li a svg {
+  margin-right: 15px;
+  min-width: 24px;
+  font-size: 1.2rem;
+}
+
+.sidebar ul li a:hover {
+  color: #fff;
+  background: var(--sidebar-hover-bg);
+}
+
+.sidebar ul li a.active {
+  color: #fff;
+  background: var(--primary-color);
+}
+
+/* --- LOGIC SUBMENU MỚI VÀ ĐÚNG --- */
+.dropdown-icon {
+  margin-left: auto;
+  transition: transform 0.3s;
+}
+
+.sidebar-submenu {
+  display: grid;
+  /* Mặc định, hàng của grid có chiều cao là 0, ẩn nội dung đi */
+  grid-template-rows: 0fr; 
+  transition: grid-template-rows 0.3s ease-in-out;
+  background-color: var(--sidebar-header-bg);
+}
+
+/* Khi thẻ <li> cha có class .open, hàng của grid sẽ giãn ra */
+li.open > .sidebar-submenu {
+  /* 1fr có nghĩa là "chiếm hết không gian cần thiết" */
+  grid-template-rows: 1fr;
+}
+
+/* Thêm một div bọc để overflow không bị ảnh hưởng */
+.sidebar-submenu > div {
+    overflow: hidden;
+}
+
+
+.sidebar-submenu li a {
+  padding-left: 0px;
+}
+
+.sidebar.collapsed .sidebar-submenu {
+  display: none !important;
+  /* Hide submenu completely when collapsed */
+}
+
+/* Style cho menu đang mở (Dựa vào class .open trên thẻ li) */
+li.open>a {
+  color: #fff;
+  background: var(--sidebar-hover-bg);
+  /* Thêm background để rõ hơn */
+}
+
+li.open>a .dropdown-icon {
+  transform: rotate(90deg);
+}
+
+/* Thụt lề cho menu cấp 3 */
+.sidebar-submenu .sidebar-submenu li a {
+  padding-left: 20px;
+}
+
+/* --- KẾT THÚC LOGIC SUBMENU MỚI --- */
+
+
+/* Footer Styles */
+.sidebar-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #343a40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+}
+
+.user-profile img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.user-info h4 {
+  font-size: 0.9rem;
+  margin: 0;
+  color: #fff;
+}
+
+.user-info p {
+  font-size: 0.75rem;
+  margin: 0;
+  color: var(--sidebar-text-color);
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  color: var(--sidebar-text-color);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.sidebar.collapsed .user-info,
+.sidebar.collapsed .logout-btn {
+  display: none;
+}
+
+.sidebar.collapsed .user-profile {
+  justify-content: center;
+  width: 100%;
+}
+
+.sidebar.collapsed .user-profile img {
+  margin-right: 0;
+}

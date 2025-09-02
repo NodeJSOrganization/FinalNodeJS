@@ -1,0 +1,50 @@
+/* src/styles/AdminGlobal.css */
+:root {
+  --primary-color: #0d6efd; /* Bootstrap blue */
+  --secondary-color: #6c757d;
+  --success-color: #198754;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #0dcaf0;
+  
+  --sidebar-bg: #212529; /* Màu tối hơn */
+  --sidebar-header-bg: #1a1d20;
+  --sidebar-text-color: #ced4da;
+  --sidebar-hover-bg: #343a40;
+  
+  --content-bg: #f8f9fa; /* Màu nền chính */
+  --card-bg: #ffffff;
+  --card-border-color: #dee2e6;
+  --text-color: #212529;
+  
+  --box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  --border-radius: 0.375rem; /* Bootstrap's default */
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: var(--content-bg);
+}
+
+/* Custom Card Style */
+.card-custom {
+  border: none;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  margin-bottom: 1.5rem;
+}
+
+/* Custom Table Style */
+.table-custom thead {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+.table-custom .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}

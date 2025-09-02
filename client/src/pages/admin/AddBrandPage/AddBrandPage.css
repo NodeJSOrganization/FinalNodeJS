@@ -1,0 +1,15 @@
+/* src/pages/admin/AddBrandPage/AddBrandPage.css */
+
+.image-preview-container {
+    margin-top: 1rem;
+    text-align: left; /* Căn lề trái */
+}
+
+.image-preview {
+    max-width: 150px;
+    max-height: 150px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.25rem;
+    object-fit: contain; /* Đảm bảo logo không bị cắt */
+}

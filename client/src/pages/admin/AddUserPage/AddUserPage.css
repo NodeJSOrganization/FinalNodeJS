@@ -1,0 +1,17 @@
+/* src/pages/admin/AddUserPage/AddUserPage.css */
+
+.avatar-preview-container {
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+    border: 3px solid #dee2e6;
+    border-radius: 50%;
+    
+    /* ✨ CÁC THUỘC TÍNH QUAN TRỌNG ĐỂ KIỂM SOÁT ẢNH NỀN ✨ */
+    background-size: cover;     /* Thay đổi ở đây */
+    background-position: center;  /* Luôn căn ảnh vào giữa */
+    background-repeat: no-repeat; /* Không lặp lại ảnh */
+    background-color: #ffffff;    /* Màu nền nếu ảnh có vùng trong suốt */
+}
+
+/* Xóa bỏ class .avatar-preview vì không còn thẻ <img> nữa */
