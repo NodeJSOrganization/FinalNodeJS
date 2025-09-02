@@ -5,7 +5,6 @@ import DashboardPage from '../pages/admin/DashboardPage';
 import ProductManagementPage from '../pages/admin/ProductManagementPage';
 import UserManagementPage from '../pages/admin/UserManagementPage';
 import OrderManagementPage from '../pages/admin/OrderManagementPage';
-import InventoryManagementPage from '../pages/admin/InventoryManagementPage';
 import DiscountManagementPage from '../pages/admin/DiscountManagementPage';
 import PromotionManagementPage from '../pages/admin/PromotionManagementPage';
 import CategoryListPage from '../pages/admin/CategoryListPage';

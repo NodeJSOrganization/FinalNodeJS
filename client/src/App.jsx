@@ -9,7 +9,7 @@ import ChangePassword from "./pages/account/ChangePasswordPage.jsx";
 import AddressBook from "./pages/account/AddressBookPage.jsx";
 import OrderHistory from "./pages/account/OrderHistoryPage.jsx";
 import { useRoutes, Navigate } from 'react-router-dom';
-import adminRoutes from './routes/adminRoutes';
+import adminRoutes from './routes/adminRoutes.jsx';
 // Admin pages
 
 function App() {

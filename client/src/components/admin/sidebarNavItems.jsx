@@ -136,9 +136,9 @@ export const sidebarNavItems = [
     icon: <FaShoppingCart />,
   },
   {
-    key: 'inventory',
-    title: 'Kho hàng',
-    path: '/admin/inventory',
+    key: 'homescreen',
+    title: 'Trang chủ',
+    path: '/admin/home',
     icon: <FaWarehouse />,
   }
 ];
