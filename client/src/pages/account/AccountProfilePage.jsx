@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useState, useRef } from "react";
 import {
   Container,
   Row,
@@ -8,355 +8,300 @@ import {
   Button,
   ListGroup,
   Image,
-  Toast,
-  ToastContainer,
+  InputGroup,
 } from "react-bootstrap";
-import {
-  Bell,
-  Person,
-  CreditCard,
-  GeoAlt,
-  Lock,
-  Gear,
-  Shield,
-  InfoCircle,
-  Bag,
-  Ticket,
-  Coin,
-  Stars,
-} from "react-bootstrap-icons";
+import "../../styles/AccountProfilePage.css";
 
-function AccountProfilePage() {
-  const [avatarUrl, setAvatarUrl] = useState(null);
-  const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
-
-  const [editing, setEditing] = useState({
-    email: false,
-    phone: false,
-    dob: false,
-  });
+export default function AccountProfile() {
   const [form, setForm] = useState({
     username: "cngtun560",
-    name: "Công Tuấn",
+    fullName: "Công Tuấn",
     email: "bi******@gmail.com",
     phone: "********01",
-    gender: "Nam",
-    dob: "**/**/2004",
+    gender: "male",
+    birthday: "2004-01-01",
+    avatarURL: "avatar.png",
   });
 
-  const masked = useMemo(
-    () => ({
-      email: "bi******@gmail.com",
-      phone: "********01",
-      dob: "**/**/2004",
-    }),
-    []
-  );
+  const [avatarURL, setAvatarURL] = useState("");
+  const [avatarError, setAvatarError] = useState(false);
+  const fileRef = useRef(null);
 
-  const leftNav = [
-    { label: "Thông Báo", icon: Bell },
-    { label: "Tài Khoản Của Tôi", icon: Person },
-    { label: "Hồ Sơ", icon: InfoCircle, active: true },
-    { label: "Ngân Hàng", icon: CreditCard },
-    { label: "Địa Chỉ", icon: GeoAlt },
-    { label: "Đổi Mật Khẩu", icon: Lock },
-    { label: "Cài Đặt Thông Báo", icon: Gear },
-    { label: "Những Thiết Lập Riêng Tư", icon: Shield },
-    { label: "Thông Tin Cá Nhân", icon: InfoCircle },
-    { label: "Đơn Mua", icon: Bag },
-    { label: "Kho Voucher", icon: Ticket },
-    { label: "Shopee Xu", icon: Coin },
-    { label: "9.9 Ngày Siêu Mua Sắm", icon: Stars },
-  ];
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  };
 
-  const onAvatarChange = (e) => {
-    setError("");
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const valid = ["image/jpeg", "image/png"].includes(file.type);
-    if (!valid) {
-      setError("Chỉ nhận JPEG hoặc PNG.");
+  const onPickAvatar = () => fileRef.current?.click();
+
+  const onAvatarSelected = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!/image\/(jpeg|png)/.test(f.type)) {
+      alert("Chỉ nhận JPEG hoặc PNG");
       return;
     }
-    if (file.size > 1024 * 1024) {
-      setError("Dung lượng ảnh tối đa 1MB.");
+    if (f.size > 1024 * 1024) {
+      alert("Dung lượng tối đa 1MB");
       return;
     }
-    const url = URL.createObjectURL(file);
-    setAvatarUrl(url);
+    const url = URL.createObjectURL(f);
+    setAvatarURL(url);
   };
 
   const handleSave = (e) => {
     e.preventDefault();
-    setToast("Đã lưu thay đổi hồ sơ.");
-    setTimeout(() => setToast(""), 1800);
-
-    // reset toggles + trả mask nếu chưa sửa
-    setEditing({ email: false, phone: false, dob: false });
-    setForm((prev) => ({
-      ...prev,
-      email: editing.email ? prev.email : masked.email,
-      phone: editing.phone ? prev.phone : masked.phone,
-      dob: editing.dob ? prev.dob : masked.dob,
-    }));
-
-    // TODO: gọi API PUT /api/account/profile với dữ liệu 'form'
+    // TODO: gọi API cập nhật hồ sơ ở đây
+    alert("Đã lưu thay đổi (demo giao diện).");
   };
 
   return (
-    <Container fluid className="bg-light min-vh-100 py-4">
-      <Row className="g-3">
+    <Container className="py-4">
+      <Row>
         {/* Sidebar */}
-        <Col md={3}>
+        <Col lg={3} className="mb-4">
           <Card className="shadow-sm">
-            <Card.Body>
-              <div className="d-flex align-items-center mb-3">
-                <div
-                  className="rounded-circle bg-light d-flex align-items-center justify-content-center"
-                  style={{ width: 48, height: 48 }}
-                >
-                  <Person size={22} className="text-secondary" />
-                </div>
-                <div className="ms-3">
-                  <div className="fw-semibold">cngtun560</div>
-                  <Button variant="link" size="sm" className="p-0">
+            <Card.Body className="pb-2">
+              <div className="d-flex align-items-center gap-2 mb-2">
+                {form.avatarURL && !avatarError ? (
+                  <img
+                    src={form.avatarURL}
+                    alt="avatar"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      background: "#f1f3f5",
+                      display: "block",
+                    }}
+                    onError={() => setAvatarError(true)}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      background: "#f1f3f5",
+                      display: "grid",
+                      placeItems: "center",
+                      fontWeight: 600,
+                      color: "#666",
+                    }}
+                  >
+                    {form.fullName?.[0] || "U"}
+                  </div>
+                )}
+                <div>
+                  <div className="fw-semibold">{form.username}</div>
+                  <a href="#!" className="small text-decoration-none">
                     Sửa Hồ Sơ
-                  </Button>
+                  </a>
                 </div>
               </div>
-
-              <ListGroup variant="flush">
-                {leftNav.map(({ label, icon: Icon, active }) => (
-                  <ListGroup.Item
-                    key={label}
-                    action
-                    className={
-                      active ? "bg-warning-subtle text-warning-emphasis" : ""
-                    }
-                  >
-                    <div className="d-flex align-items-center">
-                      <Icon
-                        size={18}
-                        className={active ? "me-2" : "me-2 text-secondary"}
-                      />{" "}
-                      {label}
-                    </div>
-                  </ListGroup.Item>
-                ))}
-              </ListGroup>
             </Card.Body>
+            <ListGroup variant="flush">
+              <ListGroup.Item className="fw-semibold" active>
+                Tài Khoản Của Tôi
+              </ListGroup.Item>
+              <ListGroup.Item className="text-start">Giỏ hàng</ListGroup.Item>
+              <ListGroup.Item className="text-start">Địa Chỉ</ListGroup.Item>
+              <ListGroup.Item className="text-start">
+                Chỉnh sửa hồ Sơ
+              </ListGroup.Item>
+              <ListGroup.Item className="text-start">
+                Đổi Mật Khẩu
+              </ListGroup.Item>
+              <ListGroup.Item className="text-start">
+                Kho Voucher
+              </ListGroup.Item>
+            </ListGroup>
           </Card>
         </Col>
 
-        {/* Main */}
-        <Col md={9}>
+        {/* Profile form */}
+        <Col lg={9}>
           <Card className="shadow-sm">
-            <Card.Header className="bg-white">
-              <div className="fw-semibold">Hồ Sơ Của Tôi</div>
-              <small className="text-muted">
-                Quản lý thông tin hồ sơ để bảo mật tài khoản
-              </small>
-            </Card.Header>
-
             <Card.Body>
-              <Form onSubmit={handleSave}>
-                <Row className="g-4">
-                  {/* Left form */}
-                  <Col lg={8}>
+              <h5 className="mb-3">Hồ Sơ Của Tôi</h5>
+              <p className="text-muted">
+                Quản lý thông tin hồ sơ để bảo mật tài khoản
+              </p>
+
+              <Row className="g-4">
+                <Col md={8}>
+                  <Form onSubmit={handleSave}>
+                    {/* Tên đăng nhập */}
                     <Form.Group className="mb-3">
                       <Form.Label>Tên đăng nhập</Form.Label>
-                      <Form.Control value={form.username} disabled />
+                      <Form.Control
+                        type="text"
+                        name="username"
+                        value={form.username}
+                        onChange={onChange}
+                        placeholder="Tên đăng nhập"
+                      />
                       <Form.Text className="text-muted">
                         Tên Đăng nhập chỉ có thể thay đổi một lần.
                       </Form.Text>
                     </Form.Group>
 
+                    {/* Tên */}
                     <Form.Group className="mb-3">
                       <Form.Label>Tên</Form.Label>
                       <Form.Control
-                        value={form.name}
-                        onChange={(e) =>
-                          setForm({ ...form, name: e.target.value })
-                        }
+                        type="text"
+                        name="fullName"
+                        value={form.fullName}
+                        onChange={onChange}
+                        placeholder="Họ và tên"
                       />
                     </Form.Group>
 
+                    {/* Email + Thay đổi */}
                     <Form.Group className="mb-3">
                       <Form.Label>Email</Form.Label>
-                      <div className="d-flex align-items-center gap-2">
-                        {editing.email ? (
-                          <Form.Control
-                            type="email"
-                            placeholder="name@example.com"
-                            autoFocus
-                            value={
-                              form.email === masked.email ? "" : form.email
-                            }
-                            onChange={(e) =>
-                              setForm({ ...form, email: e.target.value })
-                            }
-                          />
-                        ) : (
-                          <Form.Control value={form.email} disabled />
-                        )}
+                      <InputGroup>
+                        <Form.Control value={form.email} disabled readOnly />
                         <Button
-                          variant="link"
-                          onClick={() =>
-                            setEditing((s) => ({ ...s, email: !s.email }))
-                          }
+                          variant="outline-primary"
+                          onClick={() => alert("Flow đổi email (demo)")}
                         >
-                          {editing.email ? "Hủy" : "Thay Đổi"}
+                          Thay Đổi
                         </Button>
-                      </div>
+                      </InputGroup>
                     </Form.Group>
 
+                    {/* Phone + Thay đổi */}
                     <Form.Group className="mb-3">
                       <Form.Label>Số điện thoại</Form.Label>
-                      <div className="d-flex align-items-center gap-2">
-                        {editing.phone ? (
-                          <Form.Control
-                            type="tel"
-                            placeholder="0987654321"
-                            value={
-                              form.phone === masked.phone ? "" : form.phone
-                            }
-                            onChange={(e) =>
-                              setForm({ ...form, phone: e.target.value })
-                            }
-                          />
-                        ) : (
-                          <Form.Control value={form.phone} disabled />
-                        )}
+                      <InputGroup>
+                        <Form.Control value={form.phone} disabled readOnly />
                         <Button
-                          variant="link"
-                          onClick={() =>
-                            setEditing((s) => ({ ...s, phone: !s.phone }))
-                          }
+                          variant="outline-primary"
+                          onClick={() => alert("Flow đổi số điện thoại (demo)")}
                         >
-                          {editing.phone ? "Hủy" : "Thay Đổi"}
+                          Thay Đổi
                         </Button>
-                      </div>
+                      </InputGroup>
                     </Form.Group>
 
+                    {/* Giới tính */}
                     <Form.Group className="mb-3">
-                      <Form.Label>Giới tính</Form.Label>
-                      <div>
-                        {["Nam", "Nữ", "Khác"].map((g) => (
-                          <Form.Check
-                            inline
-                            type="radio"
-                            key={g}
-                            label={g}
-                            name="gender"
-                            checked={form.gender === g}
-                            onChange={() => setForm({ ...form, gender: g })}
-                          />
-                        ))}
-                      </div>
+                      <Form.Label className="me-3">Giới tính</Form.Label>
+                      <Form.Check
+                        inline
+                        type="radio"
+                        id="g-male"
+                        name="gender"
+                        label="Nam"
+                        value="male"
+                        checked={form.gender === "male"}
+                        onChange={onChange}
+                      />
+                      <Form.Check
+                        inline
+                        type="radio"
+                        id="g-female"
+                        name="gender"
+                        label="Nữ"
+                        value="female"
+                        checked={form.gender === "female"}
+                        onChange={onChange}
+                      />
+                      <Form.Check
+                        inline
+                        type="radio"
+                        id="g-other"
+                        name="gender"
+                        label="Khác"
+                        value="other"
+                        checked={form.gender === "other"}
+                        onChange={onChange}
+                      />
                     </Form.Group>
 
-                    <Form.Group className="mb-3">
+                    {/* Ngày sinh */}
+                    <Form.Group className="mb-4">
                       <Form.Label>Ngày sinh</Form.Label>
                       <div className="d-flex align-items-center gap-2">
-                        {editing.dob ? (
-                          <Form.Control
-                            type="date"
-                            value={
-                              /\n?\d{4}-\d{2}-\d{2}/.test(form.dob)
-                                ? form.dob
-                                : ""
-                            }
-                            onChange={(e) =>
-                              setForm({ ...form, dob: e.target.value })
-                            }
-                          />
-                        ) : (
-                          <Form.Control value={form.dob} disabled />
-                        )}
+                        <Form.Control
+                          type="date"
+                          name="birthday"
+                          value={form.birthday}
+                          onChange={onChange}
+                          style={{ maxWidth: 220 }}
+                        />
                         <Button
-                          variant="link"
-                          onClick={() =>
-                            setEditing((s) => ({ ...s, dob: !s.dob }))
-                          }
+                          variant="outline-primary"
+                          onClick={() => alert("Flow đổi ngày sinh (demo)")}
                         >
-                          {editing.dob ? "Hủy" : "Thay Đổi"}
+                          Thay Đổi
                         </Button>
                       </div>
                     </Form.Group>
 
-                    <Button
-                      type="submit"
-                      variant="warning"
-                      className="text-white px-4"
-                    >
+                    <Button type="submit" variant="danger" className="px-4">
                       Lưu
                     </Button>
-                  </Col>
+                  </Form>
+                </Col>
 
-                  {/* Right: avatar */}
-                  <Col lg={4}>
-                    <Card className="h-100">
-                      <Card.Body className="d-flex flex-column align-items-center justify-content-center text-center">
-                        <div
-                          className="rounded-circle bg-light overflow-hidden d-flex align-items-center justify-content-center"
-                          style={{ width: 160, height: 160 }}
-                        >
-                          {avatarUrl ? (
-                            <Image
-                              src={avatarUrl}
-                              alt="avatar"
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                              }}
-                            />
-                          ) : (
-                            <Person size={64} className="text-secondary" />
-                          )}
-                        </div>
+                {/* Avatar */}
+                <Col md={4}>
+                  <div className="d-flex flex-column align-items-center">
+                    <div
+                      style={{
+                        width: 160,
+                        height: 160,
+                        borderRadius: "50%",
+                        background: "#f1f3f5",
+                        display: "grid",
+                        placeItems: "center",
+                        overflow: "hidden",
+                        marginBottom: 16,
+                      }}
+                    >
+                      {avatarURL ? (
+                        <Image
+                          src={avatarURL}
+                          alt="avatar"
+                          roundedCircle
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <div className="text-muted">Ảnh</div>
+                      )}
+                    </div>
 
-                        <Form.Label className="btn btn-outline-secondary mt-3 mb-1">
-                          Chọn Ảnh
-                          <Form.Control
-                            type="file"
-                            accept="image/jpeg,image/png"
-                            onChange={onAvatarChange}
-                            hidden
-                          />
-                        </Form.Label>
+                    <Button variant="outline-secondary" onClick={onPickAvatar}>
+                      Chọn Ảnh
+                    </Button>
+                    <Form.Control
+                      ref={fileRef}
+                      type="file"
+                      accept=".jpg,.jpeg,.png"
+                      onChange={onAvatarSelected}
+                      className="d-none"
+                    />
 
-                        {error && (
-                          <div className="text-danger small">{error}</div>
-                        )}
-                        <div className="text-muted small">
-                          <div>Dung lượng file tối đa 1 MB</div>
-                          <div>Định dạng: JPEG, PNG</div>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                </Row>
-              </Form>
+                    <div className="text-muted small mt-3 text-center">
+                      Dung lượng file tối đa 1 MB
+                      <br />
+                      Định dạng: .JPEG, .PNG
+                    </div>
+                  </div>
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
         </Col>
       </Row>
-
-      <ToastContainer position="bottom-end" className="p-3">
-        <Toast
-          bg="dark"
-          show={!!toast}
-          onClose={() => setToast("")}
-          delay={1500}
-          autohide
-        >
-          <Toast.Body className="text-white">{toast}</Toast.Body>
-        </Toast>
-      </ToastContainer>
     </Container>
   );
 }
-
-export default AccountProfilePage;

@@ -4,10 +4,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 // React Bootstrap
-<script
-  src="https://cdn.jsdelivr.net/npm/react/umd/react.production.min.js"
-  crossorigin
-></script>;
+import "bootstrap/dist/css/bootstrap.min.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
