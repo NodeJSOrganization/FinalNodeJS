@@ -1,22 +1,30 @@
-// ✨ SỬA DÒNG NÀY: Thêm useState vào import
-import React, { useState } from 'react'; 
+// src/layouts/AdminLayout.jsx
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/admin/Sidebar';
+import { useWindowSize } from '../hooks/useWindowSize'; // Import hook
 import './AdminLayout.css';
 import '../styles/AdminGlobal.css';
 
 const AdminLayout = () => {
-  // Bây giờ dòng này sẽ hoạt động vì useState đã được import
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
+  const { width } = useWindowSize(); // Lấy chiều rộng cửa sổ từ hook
+
+  // ✨ LOGIC TỰ ĐỘNG THU GỌN SIDEBAR ✨
+  useEffect(() => {
+    // 992px là điểm breakpoint "lg" của Bootstrap
+    if (width < 992) {
+      setSidebarCollapsed(true);
+    } else {
+      setSidebarCollapsed(false);
+    }
+  }, [width]); // Chạy lại effect này mỗi khi chiều rộng cửa sổ thay đổi
+
   return (
     <div className={`admin-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      {/* Truyền state và hàm thay đổi state xuống Sidebar */}
       <Sidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} />
       <main className="admin-content">
-        <div className="container-fluid p-4">
-          <Outlet />
-        </div>
+        <Outlet />
       </main>
     </div>
   );
