@@ -188,29 +188,41 @@ export default function AccountOrderHistory() {
         className="mb-3 flex-nowrap flex-wrap"
       >
         <Nav.Item>
-          <Nav.Link eventKey={STATUS.ALL}>Tất cả</Nav.Link>
+          <Nav.Link className="" eventKey={STATUS.ALL}>
+            Tất cả
+          </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link eventKey={STATUS.PENDING}>Chờ xác nhận</Nav.Link>
+          <Nav.Link className="" eventKey={STATUS.PENDING}>
+            Chờ xác nhận
+          </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link eventKey={STATUS.READY}>Chờ lấy hàng</Nav.Link>
+          <Nav.Link className="" eventKey={STATUS.READY}>
+            Chờ lấy hàng
+          </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link eventKey={STATUS.SHIPPING}>Chờ giao hàng</Nav.Link>
+          <Nav.Link className="" eventKey={STATUS.SHIPPING}>
+            Chờ giao hàng
+          </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link eventKey={STATUS.COMPLETED}>Hoàn thành</Nav.Link>
+          <Nav.Link className="" eventKey={STATUS.COMPLETED}>
+            Hoàn thành
+          </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link eventKey={STATUS.CANCELED}>Đã hủy</Nav.Link>
+          <Nav.Link className="" eventKey={STATUS.CANCELED}>
+            Đã hủy
+          </Nav.Link>
         </Nav.Item>
       </Nav>
 
       {/* Thanh tìm kiếm */}
       <InputGroup className="mb-4">
         <Form.Control
-          placeholder="Bạn có thể tìm kiếm theo tên Shop, ID đơn hàng hoặc Tên Sản phẩm"
+          placeholder="Bạn có thể tìm kiếm theo ID đơn hàng hoặc Tên Sản phẩm"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
         />
@@ -261,7 +273,12 @@ export default function AccountOrderHistory() {
                           </div>
                           {order.status === STATUS.COMPLETED && (
                             <div className="text-success small mt-1 text-start fw-semibold">
-                              Giao hàng thành công
+                              <i class="bi bi-truck"></i> Giao hàng thành công
+                            </div>
+                          )}
+                          {order.status === STATUS.SHIPPING && (
+                            <div className="text-success small mt-1 text-start fw-semibold">
+                              <i class="bi bi-truck"></i> Đang giao hàng
                             </div>
                           )}
                         </Col>
@@ -270,7 +287,7 @@ export default function AccountOrderHistory() {
                             {currency(it.priceOriginal)}
                           </div>
                           <div className="text-muted small">
-                            <span className="text-danger fw-bold">
+                            <span className="text-danger fw-medium">
                               {currency(
                                 it.priceOriginal -
                                   it.priceOriginal * it.discount
@@ -286,8 +303,8 @@ export default function AccountOrderHistory() {
 
               <Card.Footer className="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-3">
                 <div className="ms-md-auto me-md-3">
-                  <span className="me-2 text-muted">Thành tiền:</span>
-                  <span className="fs-5 fw-bold text-danger">
+                  <span className="me-2">Thành tiền:</span>
+                  <span className="fs-5 fw-semibold text-danger">
                     {currency(total)}
                   </span>
                 </div>
@@ -295,35 +312,35 @@ export default function AccountOrderHistory() {
                 <div className="d-flex gap-2 justify-content-end">
                   {order.status === STATUS.PENDING && (
                     <Button
-                      variant="outline-danger"
+                      variant="outline-dark"
                       onClick={() => handleCancel(order)}
                     >
-                      Hủy đơn hàng
+                      <span className="small">Hủy đơn hàng</span>
                     </Button>
                   )}
 
                   {order.status === STATUS.CANCELED && (
                     <Button
-                      variant="outline-primary"
+                      variant="danger"
                       onClick={() => handleReorder(order)}
                     >
-                      Mua lại
+                      <span className="small">Mua lại</span>
                     </Button>
                   )}
 
                   {order.status === STATUS.COMPLETED && (
                     <>
                       <Button
-                        variant="outline-primary"
+                        variant="danger"
                         onClick={() => handleReorder(order)}
                       >
-                        Mua lại
+                        <span className="small">Mua lại</span>
                       </Button>
                       <Button
-                        variant="primary"
+                        variant="outline-dark"
                         onClick={() => handleReview(order)}
                       >
-                        Đánh giá sản phẩm
+                        <span className="small">Đánh giá sản phẩm</span>
                       </Button>
                     </>
                   )}
