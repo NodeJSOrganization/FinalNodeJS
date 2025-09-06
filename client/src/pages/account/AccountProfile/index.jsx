@@ -89,7 +89,7 @@ export default function AccountProfile() {
     <div className="account-page">
       <div className="d-flex align-items-center justify-content-between mb-3">
         <h5 className="mb-0">Hồ sơ</h5>
-        <Button variant="outline-primary" onClick={() => setIsEditing(true)}>
+        <Button variant="danger" onClick={() => setIsEditing(true)}>
           Chỉnh sửa
         </Button>
       </div>

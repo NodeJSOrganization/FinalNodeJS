@@ -93,7 +93,9 @@ function AddressLine({ item, onSetDefault, onEdit, onDelete }) {
             disabled={item.isDefault}
             onClick={() => onSetDefault?.(item.id)}
           >
-            {item.isDefault ? "Mặc định" : "Thiết lập mặc định"}
+            <span className="fw-bold">
+              {item.isDefault ? "Mặc định" : "Thiết lập mặc định"}
+            </span>
           </Button>
 
           <Button
@@ -154,7 +156,7 @@ function AddressForm({ draft, setDraft, onSubmit, onCancel, mode = "create" }) {
   return (
     <Card className="shadow-sm mb-3">
       <Card.Body>
-        <div className="fw-semibold mb-3">
+        <div className="fw-bold mb-3 fs-5">
           {mode === "edit" ? "Cập nhật địa chỉ" : "Thêm địa chỉ mới"}
         </div>
 

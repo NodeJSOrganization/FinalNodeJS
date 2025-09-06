@@ -359,7 +359,7 @@ export default function AccountProfileEdit({
             </Row>
 
             <div className="mt-1 d-flex gap-2">
-              <Button variant="primary" type="submit">
+              <Button variant="danger" type="submit">
                 Lưu
               </Button>
               <Button

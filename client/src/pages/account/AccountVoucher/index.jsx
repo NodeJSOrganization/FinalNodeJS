@@ -80,7 +80,7 @@ function VoucherItem({ v, onCopy, onApply }) {
           <div className="d-flex justify-content-end gap-2 mt-2">
             <Button
               size="sm"
-              variant="outline-secondary"
+              variant="outline-primary"
               onClick={() => onCopy?.(v.code)}
               title="Sao chép mã"
             >
@@ -165,7 +165,7 @@ export default function AccountVoucher({ vouchers, onApply }) {
     <div className="account-page">
       <div className="d-flex align-items-center justify-content-between mb-3">
         <h5 className="mb-0">Voucher</h5>
-        <Badge bg="secondary" className="fs-6 px-3 py-2">
+        <Badge bg="danger" className="fs-6 px-3 py-2">
           Tổng: {items.length}
         </Badge>
       </div>

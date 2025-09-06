@@ -13,6 +13,7 @@ import {
   Nav,
   Row,
 } from "react-bootstrap";
+import "../../../styles/AccountOrderHistory.css";
 
 const STATUS = {
   ALL: "ALL",
@@ -188,32 +189,32 @@ export default function AccountOrderHistory() {
         className="mb-3 flex-nowrap flex-wrap"
       >
         <Nav.Item>
-          <Nav.Link className="" eventKey={STATUS.ALL}>
+          <Nav.Link className="text-dark" eventKey={STATUS.ALL}>
             Tất cả
           </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link className="" eventKey={STATUS.PENDING}>
+          <Nav.Link className="text-dark" eventKey={STATUS.PENDING}>
             Chờ xác nhận
           </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link className="" eventKey={STATUS.READY}>
+          <Nav.Link className="text-dark" eventKey={STATUS.READY}>
             Chờ lấy hàng
           </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link className="" eventKey={STATUS.SHIPPING}>
+          <Nav.Link className="text-dark" eventKey={STATUS.SHIPPING}>
             Chờ giao hàng
           </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link className="" eventKey={STATUS.COMPLETED}>
+          <Nav.Link className="text-dark" eventKey={STATUS.COMPLETED}>
             Hoàn thành
           </Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link className="" eventKey={STATUS.CANCELED}>
+          <Nav.Link className="text-dark" eventKey={STATUS.CANCELED}>
             Đã hủy
           </Nav.Link>
         </Nav.Item>
