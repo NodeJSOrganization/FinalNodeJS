@@ -2,7 +2,7 @@ import "./App.css";
 import { useRoutes, Navigate } from "react-router-dom";
 // Admin pages
 import adminRoutes from "./routes/adminRoutes.jsx";
-import accountRoutes from "./routes/accountRoutes.jsx";
+import userRoutes from "./routes/userRoutes.jsx";
 
 function App() {
   const allRoutes = useRoutes([
@@ -11,7 +11,7 @@ function App() {
     // Admin routes (mảng) → spread
     ...adminRoutes,
     //Account routes (object Route) → đưa thẳng vào mảng
-    ...accountRoutes,
+    ...userRoutes,
     // ...customerRoutes,
   ]);
   return <>{allRoutes}</>;
