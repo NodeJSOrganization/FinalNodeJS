@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Row,
   Col,
@@ -18,13 +18,79 @@ export default function AccountProfileEdit({
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
 
+  // Tách riêng phần chọn DOB để thao tác
+  const [dobParts, setDobParts] = useState({ day: "", month: "", year: "" });
+
   const labelCls = "text-start mb-1 fw-semibold";
 
   useEffect(() => {
     setDraft(initialProfile);
     setPreviewUrl("");
     setError("");
+    // Parse YYYY-MM-DD -> year, month, day
+    if (initialProfile?.dateOfBirth) {
+      const [y, m, d] = String(initialProfile.dateOfBirth).split("-");
+      setDobParts({
+        year: y || "",
+        month: m || "",
+        day: d || "",
+      });
+    } else {
+      setDobParts({ day: "", month: "", year: "" });
+    }
   }, [initialProfile]);
+
+  // Helpers cho DOB
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  const isLeap = (y) =>
+    Number.isInteger(+y) &&
+    ((+y % 4 === 0 && +y % 100 !== 0) || +y % 400 === 0);
+
+  const daysInMonth = (y, m) => {
+    const mm = +m;
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(mm)) return 31;
+    if ([1, 3, 5, 7, 8, 10, 12].includes(mm)) return 31;
+    if ([4, 6, 9, 11].includes(mm)) return 30;
+    // February
+    return isLeap(+y) ? 29 : 28;
+  };
+
+  const years = useMemo(() => {
+    const arr = [];
+    for (let y = currentYear; y >= 1900; y--) arr.push(String(y));
+    return arr;
+  }, [currentYear]);
+
+  const months = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")),
+    []
+  );
+  const days = useMemo(() => {
+    const max = daysInMonth(dobParts.year, dobParts.month);
+    return Array.from({ length: max }, (_, i) =>
+      String(i + 1).padStart(2, "0")
+    );
+  }, [dobParts.year, dobParts.month]);
+
+  // Khi đổi 1 trong 3 select -> cập nhật dobParts và draft.dateOfBirth
+  const updateDob = (patch) => {
+    const next = { ...dobParts, ...patch };
+    // Clamp ngày khi đổi tháng/năm
+    const maxDay = daysInMonth(next.year, next.month);
+    if (next.day && +next.day > maxDay)
+      next.day = String(maxDay).padStart(2, "0");
+    setDobParts(next);
+
+    // Nếu đã đủ 3 phần -> set vào draft
+    if (next.year && next.month && next.day) {
+      const iso = `${next.year}-${next.month}-${next.day}`;
+      setDraft((d) => ({ ...d, dateOfBirth: iso }));
+    } else {
+      setDraft((d) => ({ ...d, dateOfBirth: "" }));
+    }
+  };
 
   const fileToDataUrl = (file) =>
     new Promise((resolve, reject) => {
@@ -59,6 +125,13 @@ export default function AccountProfileEdit({
     if (!emailOk) return "Email không hợp lệ.";
     const phoneOk = /^[0-9\s+()-]{8,}$/.test(draft.phone);
     if (!phoneOk) return "Số điện thoại không hợp lệ.";
+
+    // Nếu có DOB thì không được lớn hơn hôm nay
+    if (draft.dateOfBirth) {
+      const dob = new Date(draft.dateOfBirth + "T00:00:00");
+      const today = new Date(now.toDateString());
+      if (dob > today) return "Ngày sinh không được lớn hơn ngày hiện tại.";
+    }
     return "";
   };
 
@@ -78,7 +151,7 @@ export default function AccountProfileEdit({
   };
 
   const AvatarBlock = ({ url, name }) => (
-    <div className="text-start">
+    <div className="d-flex justify-content-center">
       {url ? (
         <Image
           src={url}
@@ -112,7 +185,7 @@ export default function AccountProfileEdit({
   );
 
   return (
-    <>
+    <div className="account-page">
       {error && (
         <Alert variant="danger" className="mb-3">
           {error}
@@ -121,23 +194,31 @@ export default function AccountProfileEdit({
 
       <Form onSubmit={handleSubmit} className="text-start">
         <Row className="g-4">
-          <Col md={3} xs={12}>
-            <AvatarBlock
-              url={previewUrl || draft.avatarUrl}
-              name={draft.fullName}
-            />
-
-            <Form.Group controlId="avatarUpload" className="mt-3">
-              <Form.Control
-                type="file"
-                accept="image/png,image/jpeg"
-                onChange={handleAvatarChange}
+          {/* Row avatar riêng, căn giữa */}
+          <Col xs={12} className="text-center">
+            <Form.Group controlId="avatarEdit">
+              <Form.Label className="fw-semibold d-block mb-2">
+                Ảnh đại diện
+              </Form.Label>
+              <AvatarBlock
+                url={previewUrl || draft.avatarUrl}
+                name={draft.fullName}
               />
-              <Form.Text className="text-muted">PNG/JPEG, tối đa 1MB</Form.Text>
+              <div className="mt-3 d-inline-block text-start">
+                <Form.Control
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={handleAvatarChange}
+                />
+                <Form.Text className="text-muted">
+                  PNG/JPEG, tối đa 1MB
+                </Form.Text>
+              </div>
             </Form.Group>
           </Col>
 
-          <Col md={9} xs={12}>
+          {/* Các nhãn khác ở dưới */}
+          <Col xs={12}>
             <Row className="g-3">
               <Col md={6}>
                 <Form.Group className="mb-3" controlId="fullName">
@@ -182,7 +263,79 @@ export default function AccountProfileEdit({
                 </Form.Group>
               </Col>
 
-              {/* ⭐ Loyalty Point: chỉ hiển thị, không edit; dùng InputGroup để đồng bộ chiều cao */}
+              {/* === Ngày sinh: 3 dropdown Năm / Tháng / Ngày === */}
+              <Col md={6}>
+                <Form.Group className="mb-3" controlId="dateOfBirth">
+                  <Form.Label className={labelCls}>Ngày sinh</Form.Label>
+                  <Row className="g-2">
+                    <Col xs={12} sm={4}>
+                      <Form.Select
+                        aria-label="Năm sinh"
+                        value={dobParts.year}
+                        onChange={(e) => updateDob({ year: e.target.value })}
+                      >
+                        <option value="">Năm</option>
+                        {years.map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                    <Col xs={12} sm={4}>
+                      <Form.Select
+                        aria-label="Tháng sinh"
+                        value={dobParts.month}
+                        onChange={(e) => updateDob({ month: e.target.value })}
+                      >
+                        <option value="">Tháng</option>
+                        {months.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                    <Col xs={12} sm={4}>
+                      <Form.Select
+                        aria-label="Ngày sinh"
+                        value={dobParts.day}
+                        onChange={(e) => updateDob({ day: e.target.value })}
+                        disabled={!dobParts.year || !dobParts.month}
+                      >
+                        <option value="">Ngày</option>
+                        {days.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
+                  <Form.Text className="text-muted">
+                    Vui lòng chọn đủ Năm, Tháng, Ngày.
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group className="mb-3" controlId="gender">
+                  <Form.Label className={labelCls}>Giới tính</Form.Label>
+                  <Form.Select
+                    value={draft.gender || ""}
+                    onChange={(e) =>
+                      setDraft({ ...draft, gender: e.target.value })
+                    }
+                  >
+                    <option value="">Chọn giới tính</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+
+              {/* Loyalty Point: hiển thị + nút sử dụng */}
               <Col md={6}>
                 <Form.Group className="mb-3" controlId="loyaltyPointsEditView">
                   <Form.Label className={labelCls}>Điểm thưởng</Form.Label>
@@ -191,7 +344,7 @@ export default function AccountProfileEdit({
                       value={draft.loyaltyPoints.toLocaleString()}
                       readOnly
                       disabled
-                      className="text-start"
+                      className="text-start bg-light"
                     />
                     <Button
                       variant="warning"
@@ -220,6 +373,6 @@ export default function AccountProfileEdit({
           </Col>
         </Row>
       </Form>
-    </>
+    </div>
   );
 }

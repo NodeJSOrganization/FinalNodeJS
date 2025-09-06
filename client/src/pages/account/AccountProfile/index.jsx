@@ -17,6 +17,14 @@ const initialProfile = {
   email: "nguyenvana@example.com",
   phone: "0901234567",
   loyaltyPoints: 1250,
+  dateOfBirth: "", // YYYY-MM-DD
+  gender: "", // "Nam" | "Nữ" | "Khác" | ""
+};
+
+const formatDate = (d) => {
+  if (!d) return "";
+  const dt = new Date(d);
+  return Number.isNaN(dt.getTime()) ? "" : dt.toLocaleDateString("vi-VN");
 };
 
 export default function AccountProfile() {
@@ -30,7 +38,7 @@ export default function AccountProfile() {
   };
 
   const AvatarBlock = ({ url, name }) => (
-    <div className="text-start">
+    <div className="d-flex justify-content-center">
       {url ? (
         <Image
           src={url}
@@ -78,7 +86,7 @@ export default function AccountProfile() {
   }
 
   return (
-    <>
+    <div className="account-page">
       <div className="d-flex align-items-center justify-content-between mb-3">
         <h5 className="mb-0">Hồ sơ</h5>
         <Button variant="outline-primary" onClick={() => setIsEditing(true)}>
@@ -88,11 +96,18 @@ export default function AccountProfile() {
 
       <Form className="text-start">
         <Row className="g-4">
-          <Col md={3} xs={12}>
-            <AvatarBlock url={profile.avatarUrl} name={profile.fullName} />
+          {/* Row avatar riêng, căn giữa */}
+          <Col xs={12} className="text-center">
+            <Form.Group controlId="avatarView">
+              <Form.Label className="fw-semibold d-block mb-2">
+                Ảnh đại diện
+              </Form.Label>
+              <AvatarBlock url={profile.avatarUrl} name={profile.fullName} />
+            </Form.Group>
           </Col>
 
-          <Col md={9} xs={12}>
+          {/* Các nhãn khác ở dưới */}
+          <Col xs={12}>
             <Row className="g-3">
               <Col md={6}>
                 <Form.Group className="mb-3" controlId="fullNameView">
@@ -130,7 +145,31 @@ export default function AccountProfile() {
                 </Form.Group>
               </Col>
 
-              {/* ⭐ Loyalty Point: chỉ hiển thị + nút sử dụng, dùng InputGroup cho cân bằng chiều cao */}
+              <Col md={6}>
+                <Form.Group className="mb-3" controlId="dobView">
+                  <Form.Label className={labelCls}>Ngày sinh</Form.Label>
+                  <Form.Control
+                    plaintext
+                    readOnly
+                    value={formatDate(profile.dateOfBirth)}
+                    className="border rounded px-3 py-2 bg-light text-start"
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group className="mb-3" controlId="genderView">
+                  <Form.Label className={labelCls}>Giới tính</Form.Label>
+                  <Form.Control
+                    plaintext
+                    readOnly
+                    value={profile.gender || ""}
+                    className="border rounded px-3 py-2 bg-light text-start"
+                  />
+                </Form.Group>
+              </Col>
+
+              {/* Loyalty Point */}
               <Col md={6}>
                 <Form.Group className="mb-3" controlId="loyaltyPointsView">
                   <Form.Label className={labelCls}>Điểm thưởng</Form.Label>
@@ -139,7 +178,7 @@ export default function AccountProfile() {
                       value={profile.loyaltyPoints.toLocaleString()}
                       readOnly
                       disabled
-                      className="text-start"
+                      className="text-start bg-light"
                     />
                     <Button variant="warning" onClick={handleUsePoints}>
                       Sử dụng điểm
@@ -151,6 +190,6 @@ export default function AccountProfile() {
           </Col>
         </Row>
       </Form>
-    </>
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+// src/components/account/AccountSidebar.jsx
 import { Card, ListGroup } from "react-bootstrap";
 import { NavLink } from "react-router-dom";
 
@@ -13,9 +14,9 @@ const items = [
   },
 ];
 
-export default function AccountSidebar() {
+export default function AccountSidebar({ sticky = false }) {
   return (
-    <Card className="h-100 shadow-sm">
+    <Card className={`shadow-sm ${sticky ? "sticky-sidebar" : ""}`}>
       <Card.Header>
         <strong>Tài khoản của tôi</strong>
       </Card.Header>

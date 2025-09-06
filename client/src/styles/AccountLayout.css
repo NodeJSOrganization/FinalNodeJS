@@ -1,0 +1,51 @@
+:root {
+  --account-sidebar-width: 280px; /* đổi theo ý bạn */
+  --account-max-width: 1200px;
+  --account-min-height: 640px; /* chiều cao tối thiểu cho thẻ to bên phải */
+}
+
+/* Khung tổng thể */
+.account-layout {
+  min-height: var(--account-min-height);
+}
+
+/* Hai cột cao bằng nhau */
+.account-layout .row {
+  align-items: stretch;
+}
+
+/* Sidebar cố định chiều rộng (desktop) */
+.account-sidebar-col {
+  flex: 0 0 var(--account-sidebar-width) !important;
+  max-width: var(--account-sidebar-width) !important;
+}
+
+/* Khi màn hình nhỏ, để full width */
+@media (max-width: 992px) {
+  .account-sidebar-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Sidebar bám dính khi cuộn */
+.sticky-sidebar {
+  position: sticky;
+  top: 1rem; /* khoảng cách với header */
+}
+
+/* Cột nội dung co giãn */
+.account-main-col {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Mỗi trang account sẽ chiếm trọn chiều cao card lớn */
+.account-page {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  max-width: 700px;
+  min-width: 0;
+  margin-inline: auto;
+}
