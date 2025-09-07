@@ -5,6 +5,8 @@ import accountRoutes from "./accountRoutes.jsx";
 import UserLayout from "../layouts/user/UserLayout.jsx";
 import Home from "../pages/Home.jsx";
 import Cart from "../pages/CartPage.jsx";
+import Login from "../pages/auth/Login.jsx";
+import Signup from "../pages/auth/Signup.jsx";
 
 const userRoutes = [
   {
@@ -12,7 +14,8 @@ const userRoutes = [
     element: <UserLayout />,
     children: [
       { index: true, element: <Navigate to="home" replace /> },
-
+      { path: "login", element: <Login /> },
+      { path: "signup", element: <Signup /> },
       // Các trang khách hàng
       { path: "home", element: <Home /> },
 
@@ -25,7 +28,7 @@ const userRoutes = [
       ...accountRoutes,
 
       // 404 cho nhánh user
-    //   { path: "*", element: <NotFound /> },
+      //   { path: "*", element: <NotFound /> },
     ],
   },
 ];

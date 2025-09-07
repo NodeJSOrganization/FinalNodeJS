@@ -1,17 +1,19 @@
 import "./App.css";
 import { useRoutes, Navigate } from "react-router-dom";
 // Admin pages
-import adminRoutes from "./routes/adminRoutes.jsx";
+import authRoutes from "./routes/authRoutes.jsx";
 import userRoutes from "./routes/userRoutes.jsx";
+import adminRoutes from "./routes/adminRoutes.jsx";
 
 function App() {
   const allRoutes = useRoutes([
     // Khi truy cập trang gốc, tự động chuyển hướng đến admin dashboard
     { path: "/", element: <Navigate to="/account/profile" /> },
-    // Admin routes (mảng) → spread
-    ...adminRoutes,
+    ...authRoutes,
     //Account routes (object Route) → đưa thẳng vào mảng
     ...userRoutes,
+    // Admin routes (mảng) → spread
+    ...adminRoutes,
     // ...customerRoutes,
   ]);
   return <>{allRoutes}</>;
