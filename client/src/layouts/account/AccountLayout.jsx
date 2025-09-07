@@ -6,7 +6,7 @@ import "../../styles/AccountLayout.css";
 
 export default function AccountLayout() {
   return (
-    <Container fluid className="py-4 account-layout">
+    <Container fluid className="account-layout">
       <Row className="g-4 align-items-stretch">
         <Col className="account-sidebar-col account-shell">
           {/* Sidebar bám dính */}

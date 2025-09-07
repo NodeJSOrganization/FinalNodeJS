@@ -12,20 +12,20 @@ import {
 
 //--- Demo dữ liệu ban đầu ---
 const demoAddresses = [
-  {
-    id: 1,
-    fullName: "Lê Công Tuấn",
-    phone: "+84 918 047 901",
-    address: "136/42/13, Nguyễn Thị Tần, Phường 2, Quận 8, TP. Hồ Chí Minh",
-    isDefault: true,
-  },
-  {
-    id: 2,
-    fullName: "Đoàn Cẩm Thúy",
-    phone: "+84 359 514 253",
-    address: "Số 111, Đường 47, Phường Tân Quy, Quận 7, TP. Hồ Chí Minh",
-    isDefault: false,
-  },
+  // {
+  //   id: 1,
+  //   fullName: "Lê Công Tuấn",
+  //   phone: "+84 918 047 901",
+  //   address: "136/42/13, Nguyễn Thị Tần, Phường 2, Quận 8, TP. Hồ Chí Minh",
+  //   isDefault: true,
+  // },
+  // {
+  //   id: 2,
+  //   fullName: "Đoàn Cẩm Thúy",
+  //   phone: "+84 359 514 253",
+  //   address: "Số 111, Đường 47, Phường Tân Quy, Quận 7, TP. Hồ Chí Minh",
+  //   isDefault: false,
+  // },
 ];
 
 // Dữ liệu chọn Tỉnh/Quận/Phường (demo tối thiểu)
@@ -393,7 +393,7 @@ export default function AccountAddress({ initial = demoAddresses }) {
 
       {/* Danh sách địa chỉ */}
       {sorted.length === 0 ? (
-        <Alert variant="light" className="border">
+        <Alert variant="light" className="border" style={{ minHeight: 220 }}>
           Bạn chưa có địa chỉ nào.
         </Alert>
       ) : (

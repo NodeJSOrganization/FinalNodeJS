@@ -47,90 +47,90 @@ const currency = (v) =>
 
 // ===== Demo data để bạn xem ngay giao diện =====
 const DEMO_ORDERS = [
-  {
-    orderId: "DH230901",
-    status: STATUS.COMPLETED,
-    items: [
-      {
-        productId: "P001",
-        name: "14 inch Acer Swift SF114-32 SF314-14 / 52 / 54 / 55 / 56 SF514-51 Vỏ bàn phím",
-        variant: "Phím bảo vệ silicon | Màu đen",
-        qty: 1,
-        priceOriginal: 516890,
-        discount: 0.1,
-        image: "../../../public/images/products/product_test.png",
-      },
-    ],
-  },
-  {
-    orderId: "DH230902",
-    status: STATUS.PENDING,
-    items: [
-      {
-        productId: "P002",
-        name: "Chuột không dây Logitech M331 Silent",
-        variant: "Màu: Đen",
-        qty: 1,
-        priceOriginal: 299000,
-        discount: 0.2,
-        image: "../../../public/images/products/product_test.png",
-      },
-    ],
-  },
-  {
-    orderId: "DH230903",
-    status: STATUS.READY,
-    items: [
-      {
-        productId: "P003",
-        name: "Bàn phím cơ Keychron K6",
-        variant: "Brown Switch | Led trắng",
-        qty: 1,
-        priceOriginal: 1899000,
-        discount: 0.1,
-        image: "../../../public/images/products/product_test.png",
-      },
-      {
-        productId: "P004",
-        name: "Lót chuột DareU",
-        variant: "Size L",
-        qty: 2,
-        priceOriginal: 129000,
-        discount: 0.2,
-        image: "../../../public/images/products/product_test.png",
-      },
-    ],
-  },
-  {
-    orderId: "DH230904",
-    status: STATUS.SHIPPING,
-    items: [
-      {
-        productId: "P005",
-        name: "SSD Samsung 980 1TB NVMe",
-        variant: "M.2 PCIe 3.0",
-        qty: 1,
-        priceOriginal: 1699000,
-        discount: 0.1,
-        image: "../../../public/images/products/product_test.png",
-      },
-    ],
-  },
-  {
-    orderId: "DH230905",
-    status: STATUS.CANCELED,
-    items: [
-      {
-        productId: "P006",
-        name: "Tản nhiệt CPU Deepcool AK400",
-        variant: "Đen",
-        qty: 1,
-        priceOriginal: 649000,
-        discount: 0.2,
-        image: "../../../public/images/products/product_test.png",
-      },
-    ],
-  },
+  // {
+  //   orderId: "DH230901",
+  //   status: STATUS.COMPLETED,
+  //   items: [
+  //     {
+  //       productId: "P001",
+  //       name: "14 inch Acer Swift SF114-32 SF314-14 / 52 / 54 / 55 / 56 SF514-51 Vỏ bàn phím",
+  //       variant: "Phím bảo vệ silicon | Màu đen",
+  //       qty: 1,
+  //       priceOriginal: 516890,
+  //       discount: 0.1,
+  //       image: "../../../public/images/products/product_test.png",
+  //     },
+  //   ],
+  // },
+  // {
+  //   orderId: "DH230902",
+  //   status: STATUS.PENDING,
+  //   items: [
+  //     {
+  //       productId: "P002",
+  //       name: "Chuột không dây Logitech M331 Silent",
+  //       variant: "Màu: Đen",
+  //       qty: 1,
+  //       priceOriginal: 299000,
+  //       discount: 0.2,
+  //       image: "../../../public/images/products/product_test.png",
+  //     },
+  //   ],
+  // },
+  // {
+  //   orderId: "DH230903",
+  //   status: STATUS.READY,
+  //   items: [
+  //     {
+  //       productId: "P003",
+  //       name: "Bàn phím cơ Keychron K6",
+  //       variant: "Brown Switch | Led trắng",
+  //       qty: 1,
+  //       priceOriginal: 1899000,
+  //       discount: 0.1,
+  //       image: "../../../public/images/products/product_test.png",
+  //     },
+  //     {
+  //       productId: "P004",
+  //       name: "Lót chuột DareU",
+  //       variant: "Size L",
+  //       qty: 2,
+  //       priceOriginal: 129000,
+  //       discount: 0.2,
+  //       image: "../../../public/images/products/product_test.png",
+  //     },
+  //   ],
+  // },
+  // {
+  //   orderId: "DH230904",
+  //   status: STATUS.SHIPPING,
+  //   items: [
+  //     {
+  //       productId: "P005",
+  //       name: "SSD Samsung 980 1TB NVMe",
+  //       variant: "M.2 PCIe 3.0",
+  //       qty: 1,
+  //       priceOriginal: 1699000,
+  //       discount: 0.1,
+  //       image: "../../../public/images/products/product_test.png",
+  //     },
+  //   ],
+  // },
+  // {
+  //   orderId: "DH230905",
+  //   status: STATUS.CANCELED,
+  //   items: [
+  //     {
+  //       productId: "P006",
+  //       name: "Tản nhiệt CPU Deepcool AK400",
+  //       variant: "Đen",
+  //       qty: 1,
+  //       priceOriginal: 649000,
+  //       discount: 0.2,
+  //       image: "../../../public/images/products/product_test.png",
+  //     },
+  //   ],
+  // },
 ];
 
 function calcOrderTotal(order) {
