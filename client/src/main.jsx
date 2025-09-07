@@ -6,6 +6,8 @@ import { BrowserRouter } from "react-router-dom";
 // React Bootstrap
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
+// Theme
+// import "./styles/Theme.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

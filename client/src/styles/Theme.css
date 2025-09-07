@@ -1,0 +1,6 @@
+/* Màu xám nhẹ cho toàn site */
+:root,
+[data-bs-theme="light"] {
+  --bs-body-bg: #f2f3f5; /* xám nhẹ */
+  --bs-body-color: #212529; /* giữ màu chữ mặc định */
+}
