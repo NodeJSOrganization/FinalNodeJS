@@ -59,3 +59,10 @@
   margin-top: 0.25rem;
   font-size: 0.65rem;
 }
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  max-width: 400px; /* Giới hạn chiều rộng tối đa của biểu đồ để không quá to */
+  margin: auto; /* Căn giữa biểu đồ trong card */
+}
