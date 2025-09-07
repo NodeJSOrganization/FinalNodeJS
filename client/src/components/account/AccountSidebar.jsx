@@ -14,29 +14,62 @@ const items = [
   },
 ];
 
-export default function AccountSidebar({ sticky = false }) {
+export default function AccountSidebar({ sticky = false, onLogout }) {
+  const handleLogout = (e) => {
+    e.preventDefault();
+    if (typeof onLogout === "function") return onLogout();
+    // fallback nếu bạn chưa truyền onLogout từ trên
+    window.location.href = "/logout";
+  };
+
   return (
-    <Card className={`shadow-sm ${sticky ? "sticky-sidebar" : ""}`}>
+    <Card
+      className={`shadow-sm ${
+        sticky ? "sticky-sidebar" : ""
+      } d-flex flex-column`}
+    >
       <Card.Header>
         <strong>Tài khoản của tôi</strong>
       </Card.Header>
-      <ListGroup variant="flush">
-        {items.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end
-            className={({ isActive }) =>
-              `list-group-item list-group-item-action d-flex align-items-center ${
-                isActive ? "active" : ""
-              }`
-            }
+
+      {/* Danh sách mục – phần này có thể cuộn khi dài */}
+      <ListGroup
+        variant="flush"
+        as="nav"
+        aria-label="Tài khoản"
+        className="scrollable-menu"
+      >
+        {items.map((i) => (
+          <ListGroup.Item
+            key={i.to}
+            as={NavLink}
+            to={i.to}
+            end={i.to === "profile"}
+            action
+            className="d-flex align-items-center"
           >
-            <i className={`${item.icon} me-2`} aria-hidden="true" />
-            <span>{item.label}</span>
-          </NavLink>
+            <i className={`${i.icon} me-2`} aria-hidden="true" />
+            <span>{i.label}</span>
+          </ListGroup.Item>
         ))}
       </ListGroup>
+
+      {/* Khối dưới cùng: có spacer rồi mới tới Đăng xuất, cả cụm ghim đáy */}
+      <div className="mt-auto">
+        <div className="sidebar-gap" aria-hidden="true" />
+        <ListGroup variant="flush" className="border-top">
+          <ListGroup.Item
+            as="button"
+            type="button"
+            action
+            onClick={handleLogout}
+            className="d-flex align-items-center text-start"
+          >
+            <i className="bi bi-box-arrow-right me-2" aria-hidden="true" />
+            <span>Đăng xuất</span>
+          </ListGroup.Item>
+        </ListGroup>
+      </div>
     </Card>
   );
 }

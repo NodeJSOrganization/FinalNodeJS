@@ -103,56 +103,54 @@ function VoucherItem({ v, onCopy, onApply }) {
 
 export default function AccountVoucher({ vouchers, onApply }) {
   // Demo data nếu chưa truyền props
-  const items =
-    vouchers ??
-    [
-      // {
-      //   code: "SAVE10",
-      //   discountType: "PERCENT",
-      //   discountValue: 10,
-      //   usedCount: 2,
-      //   usageLimit: 10,
-      //   description: "Giảm 10% cho đơn đầu tiên của bạn.",
-      // },
-      // {
-      //   code: "LAP50K",
-      //   discountType: "AMOUNT",
-      //   discountValue: 50000,
-      //   usedCount: 0,
-      //   description: "Giảm 50.000 đ cho đơn từ 1.000.000 đ.",
-      // },
-      // {
-      //   code: "PHUKIEN15",
-      //   discountType: "PERCENT",
-      //   discountValue: 15,
-      //   usedCount: 5,
-      //   usageLimit: 10,
-      //   description: "Áp dụng cho phụ kiện laptop.",
-      // },
-      // {
-      //   code: "SAVE10",
-      //   discountType: "PERCENT",
-      //   discountValue: 10,
-      //   usedCount: 2,
-      //   usageLimit: 10,
-      //   description: "Giảm 10% cho đơn đầu tiên của bạn.",
-      // },
-      // {
-      //   code: "LAP50K",
-      //   discountType: "AMOUNT",
-      //   discountValue: 50000,
-      //   usedCount: 0,
-      //   description: "Giảm 50.000 đ cho đơn từ 1.000.000 đ.",
-      // },
-      // {
-      //   code: "PHUKIEN15",
-      //   discountType: "PERCENT",
-      //   discountValue: 15,
-      //   usedCount: 5,
-      //   usageLimit: 10,
-      //   description: "Áp dụng cho phụ kiện laptop.",
-      // },
-    ];
+  const items = vouchers ?? [
+    {
+      code: "SAVE10",
+      discountType: "PERCENT",
+      discountValue: 10,
+      usedCount: 2,
+      usageLimit: 10,
+      description: "Giảm 10% cho đơn đầu tiên của bạn.",
+    },
+    {
+      code: "LAP50K",
+      discountType: "AMOUNT",
+      discountValue: 50000,
+      usedCount: 0,
+      description: "Giảm 50.000 đ cho đơn từ 1.000.000 đ.",
+    },
+    {
+      code: "PHUKIEN15",
+      discountType: "PERCENT",
+      discountValue: 15,
+      usedCount: 5,
+      usageLimit: 10,
+      description: "Áp dụng cho phụ kiện laptop.",
+    },
+    {
+      code: "SAVE10",
+      discountType: "PERCENT",
+      discountValue: 10,
+      usedCount: 2,
+      usageLimit: 10,
+      description: "Giảm 10% cho đơn đầu tiên của bạn.",
+    },
+    {
+      code: "LAP50K",
+      discountType: "AMOUNT",
+      discountValue: 50000,
+      usedCount: 0,
+      description: "Giảm 50.000 đ cho đơn từ 1.000.000 đ.",
+    },
+    {
+      code: "PHUKIEN15",
+      discountType: "PERCENT",
+      discountValue: 15,
+      usedCount: 5,
+      usageLimit: 10,
+      description: "Áp dụng cho phụ kiện laptop.",
+    },
+  ];
 
   const handleCopy = async (code) => {
     try {

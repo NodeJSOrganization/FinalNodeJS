@@ -18,20 +18,35 @@
 .account-sidebar-col {
   flex: 0 0 var(--account-sidebar-width) !important;
   max-width: var(--account-sidebar-width) !important;
+  display: block !important;
 }
 
-/* Khi màn hình nhỏ, để full width */
-@media (max-width: 992px) {
-  .account-sidebar-col {
-    flex: 0 0 100% !important;
-    max-width: 100% !important;
-  }
+.account-layout,
+.row,
+.account-sidebar-col {
+  overflow: visible !important;
 }
 
-/* Sidebar bám dính khi cuộn */
+/* Khoảng trống giữa 'Đổi mật khẩu' và 'Đăng xuất' */
+.sidebar-gap {
+  height: 16rem;
+} /* đổi số này nếu muốn rộng/hẹp hơn */
+
+/* Giữ sticky và cho Card hoạt động như 1 cột flex để nút xuống đáy */
 .sticky-sidebar {
   position: sticky;
-  top: 1rem; /* khoảng cách với header */
+  top: calc(var(--account-header-offset, 0px) + 16px);
+  z-index: 2;
+  height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* phần cuộn giao cho .scrollable-menu */
+}
+
+/* Phần danh sách chính được phép cuộn */
+.sticky-sidebar .scrollable-menu {
+  overflow: auto;
+  max-height: 100%;
 }
 
 /* Cột nội dung co giãn */
@@ -46,4 +61,28 @@
   width: 100%;
   min-width: 0;
   margin-inline: auto;
+}
+
+/* Sticky chuẩn: neo vào phía trên, giới hạn chiều cao, cho phép cuộn nội bộ */
+.sticky-sidebar {
+  position: sticky;
+  top: calc(var(--account-header-offset) + 16px); /* 16px = 1rem khoảng đệm */
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+}
+
+/* (Khuyến nghị) Trên màn hình nhỏ, tắt sticky để sidebar không chiếm chỗ khó chịu */
+@media (max-width: 992px) {
+  .account-sidebar-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+  .sticky-sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .sidebar-gap {
+    height: 0rem;
+  }
 }

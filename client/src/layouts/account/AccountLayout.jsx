@@ -7,8 +7,8 @@ import "../../styles/AccountLayout.css";
 export default function AccountLayout() {
   return (
     <Container fluid className="account-layout">
-      <Row className="g-4 align-items-stretch">
-        <Col className="account-sidebar-col account-shell">
+      <Row className="g-4">
+        <Col className="account-sidebar-col p-0">
           {/* Sidebar bám dính */}
           <AccountSidebar sticky />
         </Col>
