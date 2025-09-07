@@ -8,7 +8,7 @@ import {
 } from "react-bootstrap";
 import { FaSearch, FaShoppingCart, FaUser } from "react-icons/fa";
 import { Link } from "react-router-dom";
-// import "../styles/Header.css";
+import "../../styles/Header.css";
 import Logo from "../../assets/images/logo_white_space.png";
 
 const Header = () => {
@@ -33,12 +33,6 @@ const Header = () => {
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
 
           <Navbar.Collapse id="basic-navbar-nav">
-            {/* <Nav className="me-auto">
-              <Nav.Link href="#danh-muc" className="custom-btn mx-2">
-                Danh mục{" "}
-                <span className="ms-1 d-none d-lg-inline">&#9660;</span>
-              </Nav.Link>
-            </Nav> */}
             <Nav className="me-auto">
               <NavDropdown
                 title={
@@ -49,13 +43,13 @@ const Header = () => {
                 id="basic-nav-dropdown"
                 className="mx-2"
               >
-                <Link className="dropdown-item" to="/catalog/laptops">
+                <Link className="dropdown-item" to="/laptops">
                   Laptops
                 </Link>
-                <Link className="dropdown-item" to="/catalog/monitors">
+                <Link className="dropdown-item" to="/monitors">
                   Monitors
                 </Link>
-                <Link className="dropdown-item" to="/catalog/hard-drives">
+                <Link className="dropdown-item" to="/hard-drives">
                   Hard Drives
                 </Link>
               </NavDropdown>

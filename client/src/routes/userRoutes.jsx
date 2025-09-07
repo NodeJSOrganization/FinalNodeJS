@@ -3,10 +3,11 @@ import accountRoutes from "./accountRoutes.jsx";
 
 // Layout & pages (đổi import path theo dự án của bạn)
 import UserLayout from "../layouts/user/UserLayout.jsx";
-import Home from "../pages/Home.jsx";
-import Cart from "../pages/CartPage.jsx";
-import Login from "../pages/auth/Login.jsx";
-import Signup from "../pages/auth/Signup.jsx";
+import Home from "../pages/customer/Home.jsx";
+import Cart from "../pages/customer/CartPage.jsx";
+import ProductCatalog from "../pages/product/ProductCatalog.jsx";
+import ProductDetail from "../pages/product/ProductDetail.jsx";
+import Order from "../pages/customer/Order.jsx";
 
 const userRoutes = [
   {
@@ -14,13 +15,12 @@ const userRoutes = [
     element: <UserLayout />,
     children: [
       { index: true, element: <Navigate to="home" replace /> },
-      { path: "login", element: <Login /> },
-      { path: "signup", element: <Signup /> },
       // Các trang khách hàng
       { path: "home", element: <Home /> },
-
-      // Cart & Checkout
+      { path: ":category", element: <ProductCatalog /> },
+      { path: ":category/:id", element: <ProductDetail /> },
       { path: "cart", element: <Cart /> },
+      { path: "order", element: <Order /> },
 
       // Lồng toàn bộ account routes để dùng chung UserLayout
       // accountRoutes hiện có path "/account" → vẫn hoạt động bình thường.

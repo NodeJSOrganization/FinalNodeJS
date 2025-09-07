@@ -8,7 +8,7 @@ import adminRoutes from "./routes/adminRoutes.jsx";
 function App() {
   const allRoutes = useRoutes([
     // Khi truy cập trang gốc, tự động chuyển hướng đến admin dashboard
-    { path: "/", element: <Navigate to="/account/profile" /> },
+    { path: "/", element: <Navigate to="/home" /> },
     ...authRoutes,
     //Account routes (object Route) → đưa thẳng vào mảng
     ...userRoutes,

@@ -1,10 +1,10 @@
 // src/layouts/AdminLayout.jsx
-import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
-import Sidebar from '../components/admin/Sidebar';
-import { useWindowSize } from '../hooks/useWindowSize'; // Import hook
-import './AdminLayout.css';
-import '../styles/AdminGlobal.css';
+import { useState, useEffect } from "react";
+import { Outlet } from "react-router-dom";
+import Sidebar from "../../components/admin/Sidebar";
+import { useWindowSize } from "../../hooks/useWindowSize"; // Import hook
+import "./AdminLayout.css";
+import "../../styles/AdminGlobal.css";
 
 const AdminLayout = () => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -21,8 +21,15 @@ const AdminLayout = () => {
   }, [width]); // Chạy lại effect này mỗi khi chiều rộng cửa sổ thay đổi
 
   return (
-    <div className={`admin-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <Sidebar isCollapsed={isSidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+    <div
+      className={`admin-layout ${
+        isSidebarCollapsed ? "sidebar-collapsed" : ""
+      }`}
+    >
+      <Sidebar
+        isCollapsed={isSidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+      />
       <main className="admin-content">
         <Outlet />
       </main>

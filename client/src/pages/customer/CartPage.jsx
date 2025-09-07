@@ -15,6 +15,9 @@ import {
   Collapse,
   Card,
 } from "react-bootstrap";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { setCartItems } from "../../../features/cart/cartReducer";
 
 // ===== Helpers =====
 const currency = (v) =>
@@ -26,116 +29,6 @@ const currency = (v) =>
 const POINT_TO_VND = 1000;
 
 // ===== Demo data (thay bằng data từ API của bạn) =====
-const DEMO_ITEMS = [
-  {
-    id: "C001",
-    checked: true,
-    name: "Kệ bàn học kiêm kệ màn hình TopY decor",
-    variant: "Sợi carbon 160*100cm",
-    price: 1020000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C002",
-    checked: true,
-    name: "Chuột không dây Logitech M331 Silent",
-    variant: "Màu đen",
-    price: 299000,
-    qty: 2,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C003",
-    checked: false,
-    name: "SSD Samsung 980 1TB NVMe",
-    variant: "M.2 PCIe 3.0",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C004",
-    checked: false,
-    name: "SSD Samsung 9890 1TB NVMe",
-    variant: "M.2 PCIe 4.0",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C005",
-    checked: false,
-    name: "SSD Samsung 780 1TB NVMe",
-    variant: "Trắng",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C006",
-    checked: false,
-    name: "SSD Samsung 1TB NVMe",
-    variant: "M.2 FD 3.0",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C007",
-    checked: false,
-    name: "Chuột không dây Logitech M331 Silent",
-    variant: "Màu đỏ",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C008",
-    checked: false,
-    name: "Chuột không dây Logitech M341 Silent",
-    variant: "Màu đỏ",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C009",
-    checked: false,
-    name: "Chuột không dây Logitech M333331 Silent",
-    variant: "Màu vàng",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C010",
-    checked: false,
-    name: "Bàn phím cơ Logitech M331 Silent",
-    variant: "Màu đen",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C011",
-    checked: false,
-    name: "Bàn phím cơ Logitech M331 Silent",
-    variant: "Màu xanh dương",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-  {
-    id: "C012",
-    checked: false,
-    name: "Bàn phím cơ Logitech M333331 Silent",
-    variant: "Màu vàng",
-    price: 1699000,
-    qty: 1,
-    image: "../../../public/images/products/product_test.png",
-  },
-];
 
 const DEMO_VOUCHERS = [
   {
@@ -229,13 +122,18 @@ export default function CartPage() {
   const [keyword, setKeyword] = useState("");
 
   // ------ Cart state ------
-  const [items, setItems] = useState(DEMO_ITEMS);
+  // const [items, setItems] = useState(DEMO_ITEMS);
+  const { cartItems } = useSelector((state) => state.cart);
+  console.log("cartItems", cartItems);
+
+  const dispatch = useDispatch();
 
   // ------ Voucher state ------
   const [voucherModal, setVoucherModal] = useState(false);
   const [vouchers] = useState(DEMO_VOUCHERS);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
+  const navigate = useNavigate();
 
   // ------ Reward points ------
   const [userPoints] = useState(458); // ví dụ: 458 điểm ~ 458.000đ
@@ -247,27 +145,27 @@ export default function CartPage() {
   // ====== Derived values ======
   const filteredItems = useMemo(() => {
     const k = keyword.trim().toLowerCase();
-    if (!k) return items;
-    return items.filter(
+    if (!k) return cartItems;
+    return cartItems.filter(
       (x) =>
         x.name.toLowerCase().includes(k) || x.variant.toLowerCase().includes(k)
     );
-  }, [items, keyword]);
+  }, [cartItems, keyword]);
 
   const allChecked = useMemo(
-    () => items.length > 0 && items.every((x) => x.checked),
-    [items]
+    () => cartItems.length > 0 && cartItems.every((x) => x.checked),
+    [cartItems]
   );
 
-  const totalCount = items.length;
-  const selectedCount = items.filter((x) => x.checked).length;
+  const totalCount = cartItems.length;
+  const selectedCount = cartItems.filter((x) => x.checked).length;
 
   const selectedSubtotal = useMemo(
     () =>
-      items
+      cartItems
         .filter((x) => x.checked)
         .reduce((s, it) => s + it.price * it.qty, 0),
-    [items]
+    [cartItems]
   );
 
   const voucherDiscount = useMemo(() => {
@@ -291,22 +189,29 @@ export default function CartPage() {
 
   // ====== Handlers ======
   const toggleAll = (checked) =>
-    setItems((prev) => prev.map((x) => ({ ...x, checked })));
+    dispatch(setCartItems((prev) => prev.map((x) => ({ ...x, checked }))));
 
   const toggleOne = (id, checked) =>
-    setItems((prev) => prev.map((x) => (x.id === id ? { ...x, checked } : x)));
-
-  const changeQty = (id, delta) =>
-    setItems((prev) =>
-      prev.map((x) =>
-        x.id === id ? { ...x, qty: Math.max(1, x.qty + delta) } : x
+    dispatch(
+      setCartItems((prev) =>
+        prev.map((x) => (x.id === id ? { ...x, checked } : x))
       )
     );
 
-  const removeOne = (id) => setItems((prev) => prev.filter((x) => x.id !== id));
+  const changeQty = (id, delta) =>
+    dispatch(
+      setCartItems((prev) =>
+        prev.map((x) =>
+          x.id === id ? { ...x, qty: Math.max(1, x.qty + delta) } : x
+        )
+      )
+    );
+
+  const removeOne = (id) =>
+    dispatch(setCartItems((prev) => prev.filter((x) => x.id !== id)));
 
   const removeSelected = () =>
-    setItems((prev) => prev.filter((x) => !x.checked));
+    dispatch(setCartItems((prev) => prev.filter((x) => !x.checked)));
 
   const openVoucher = () => {
     setVoucherCodeInput("");
@@ -584,6 +489,7 @@ export default function CartPage() {
               <Button
                 variant="danger"
                 disabled={selectedCount === 0 || payable === 0}
+                onClick={() => navigate("/order")}
               >
                 Mua hàng
               </Button>
