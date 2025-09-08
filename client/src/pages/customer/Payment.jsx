@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import {
@@ -12,14 +12,14 @@ import {
   ListGroup,
   Image,
 } from "react-bootstrap";
+
+import { clearOrderDetails } from "../../../features/order/orderReducer";
 import { clearSelectedItems } from "../../../features/cart/cartReducer";
 
 const currency = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     Math.max(0, Number(v) || 0)
   );
-
-const SHIPPING_FEE = 30000;
 
 const paymentMethods = [
   {
@@ -30,12 +30,12 @@ const paymentMethods = [
   {
     id: "momo",
     name: "Ví điện tử Momo",
-    description: "Thanh toán an toàn qua ứng dụng Momo.",
+    description: "Thanh toán an toàn và nhanh chóng qua ứng dụng Momo.",
   },
   {
     id: "vnpay",
     name: "Cổng thanh toán VNPAY",
-    description: "Hỗ trợ thẻ ATM, Visa, Master, JCB.",
+    description: "Hỗ trợ thẻ ATM nội địa, thẻ quốc tế Visa, Master, JCB.",
   },
 ];
 
@@ -54,11 +54,29 @@ export default function PaymentPage() {
     }
   }, [orderData, navigate]);
 
-  if (!orderData) return null;
+  const shippingFee = useMemo(() => {
+    if (!orderData?.shippingInfo?.provinceName) {
+      return 30000;
+    }
+    const provinceNormalized = orderData.shippingInfo.provinceName
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    if (provinceNormalized.includes("ho chi minh")) {
+      return 15000;
+    }
+
+    return 30000;
+  }, [orderData]);
+
+  if (!orderData) {
+    return null;
+  }
 
   const { orderItems, customerInfo, shippingInfo, subtotal, savings, payable } =
     orderData;
-  const finalTotal = payable + SHIPPING_FEE;
+  const finalTotal = payable + shippingFee;
 
   const handleCompleteOrder = () => {
     if (!selectedPaymentMethod) {
@@ -66,9 +84,12 @@ export default function PaymentPage() {
       return;
     }
 
+    const generatedOrderId = "DH" + Date.now();
+
     const finalOrder = {
       ...orderData,
-      shippingFee: SHIPPING_FEE,
+      orderId: generatedOrderId,
+      shippingFee: shippingFee,
       finalTotal: finalTotal,
       paymentMethod: selectedPaymentMethod,
       orderDate: new Date().toISOString(),
@@ -77,8 +98,9 @@ export default function PaymentPage() {
     console.log("SENDING FINAL ORDER TO SERVER:", finalOrder);
 
     dispatch(clearSelectedItems());
+    dispatch(clearOrderDetails());
 
-    navigate("/order-success", { state: { orderId: "DH" + Date.now() } });
+    navigate("/order-success", { state: { orderId: generatedOrderId } });
   };
 
   return (
@@ -94,7 +116,7 @@ export default function PaymentPage() {
                 {customerInfo.phone})
               </p>
               <p className="mb-0">
-                <strong>Giao đến:</strong> {shippingInfo.address}
+                <strong>Giao đến:</strong> {shippingInfo.fullAddress}
               </p>
               {shippingInfo.note && (
                 <p className="mt-2 mb-0 fst-italic">
@@ -171,7 +193,7 @@ export default function PaymentPage() {
         </Col>
 
         <Col md={5}>
-          <Card className="shadow-sm sticky-top" style={{ top: "100px" }}>
+          <Card className="shadow-sm sticky-top" style={{ top: "20px" }}>
             <Card.Header as="h5">Tóm tắt đơn hàng</Card.Header>
             <Card.Body>
               <div className="d-flex justify-content-between mb-2">
@@ -186,7 +208,7 @@ export default function PaymentPage() {
               )}
               <div className="d-flex justify-content-between mb-2">
                 <span>Phí vận chuyển</span>
-                <span>{currency(SHIPPING_FEE)}</span>
+                <span>{currency(shippingFee)}</span>
               </div>
               <hr />
               <div className="d-flex justify-content-between fw-bold fs-5 mb-3">

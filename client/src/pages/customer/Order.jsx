@@ -10,10 +10,15 @@ import {
   Image,
   Alert,
 } from "react-bootstrap";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-// ===== Helpers =====
+import AddressSelector from "../../components/product/AddressSelector";
+import {
+  fetchProvinces,
+  updateShippingInfo,
+} from "../../../features/order/orderReducer";
+
 const currency = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     Math.max(0, Number(v) || 0)
@@ -22,28 +27,25 @@ const POINT_TO_VND = 1000;
 
 export default function OrderPage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  // Lấy tất cả state cần thiết từ Redux
   const { cartItems, selectedVoucher, usePoints } = useSelector(
     (state) => state.cart
   );
-  const { currentUser, isAuthenticated } = useSelector((state) => state.user); // Giả sử có user slice
+  const { currentUser, isAuthenticated } = useSelector((state) => state.user);
+  const { shippingInfo } = useSelector((state) => state.order);
 
-  // State cục bộ cho form và lỗi
   const [formError, setFormError] = useState("");
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     email: "",
     phone: "",
   });
-  const [shippingInfo, setShippingInfo] = useState({
-    receiverName: "",
-    receiverPhone: "",
-    address: "",
-    note: "",
-  });
 
-  // Tự động điền thông tin nếu người dùng đã đăng nhập
+  useEffect(() => {
+    dispatch(fetchProvinces());
+  }, [dispatch]);
+
   useEffect(() => {
     if (isAuthenticated && currentUser) {
       setCustomerInfo({
@@ -51,44 +53,40 @@ export default function OrderPage() {
         email: currentUser.email || "",
         phone: currentUser.phone || "",
       });
-      setShippingInfo((prev) => ({
-        ...prev,
-        receiverName: currentUser.name || "",
-        receiverPhone: currentUser.phone || "",
-        address: currentUser.address || "",
-      }));
+      dispatch(
+        updateShippingInfo({
+          field: "receiverName",
+          value: currentUser.name || "",
+        })
+      );
+      dispatch(
+        updateShippingInfo({
+          field: "receiverPhone",
+          value: currentUser.phone || "",
+        })
+      );
     }
-  }, [isAuthenticated, currentUser]);
+  }, [isAuthenticated, currentUser, dispatch]);
 
   const selectedCartItems = useMemo(
     () => cartItems.filter((item) => item.checked),
     [cartItems]
   );
 
-  // // Điều hướng về giỏ hàng nếu không có sản phẩm nào được chọn
-  // useEffect(() => {
-  //   if (selectedCartItems.length === 0) {
-  //     navigate("/cart");
-  //   }
-  // }, [selectedCartItems, navigate]);
-
   useEffect(() => {
     if (selectedCartItems.length === 0) {
       navigate("/cart", {
         replace: true,
-        state: { message: "Vui lòng chọn sản phẩm để tiến hành đặt hàng." }, // Gửi tin nhắn
+        state: { message: "Vui lòng chọn sản phẩm để tiến hành đặt hàng." },
       });
     }
   }, []);
 
-  // Tính toán lại các giá trị dựa trên state từ Redux
-  const [userPoints] = useState(458); // Ví dụ điểm của người dùng
-
+  const [userPoints] = useState(458);
   const selectedSubtotal = useMemo(
     () => selectedCartItems.reduce((s, it) => s + it.price * it.qty, 0),
     [selectedCartItems]
   );
-
   const voucherDiscount = useMemo(() => {
     if (!selectedVoucher) return 0;
     if (selectedVoucher.discountType === "AMOUNT") {
@@ -96,20 +94,23 @@ export default function OrderPage() {
     }
     return Math.floor((selectedSubtotal * selectedVoucher.discountValue) / 100);
   }, [selectedVoucher, selectedSubtotal]);
-
   const pointBalanceVnd = userPoints * POINT_TO_VND;
   const pointsAppliedVnd = useMemo(() => {
     if (!usePoints) return 0;
     const remainAfterVoucher = Math.max(0, selectedSubtotal - voucherDiscount);
     return Math.min(pointBalanceVnd, remainAfterVoucher);
   }, [usePoints, pointBalanceVnd, selectedSubtotal, voucherDiscount]);
-
   const savings = voucherDiscount + pointsAppliedVnd;
   const payable = Math.max(0, selectedSubtotal - savings);
 
-  const handleInputChange = (setter) => (e) => {
+  const handleCustomerInfoChange = (e) => {
     const { name, value } = e.target;
-    setter((prev) => ({ ...prev, [name]: value }));
+    setCustomerInfo((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleDirectShippingInfoChange = (e) => {
+    const { name, value } = e.target;
+    dispatch(updateShippingInfo({ field: name, value }));
   };
 
   const handleProceedToPayment = (e) => {
@@ -120,19 +121,24 @@ export default function OrderPage() {
       !customerInfo.phone.trim() ||
       !shippingInfo.receiverName.trim() ||
       !shippingInfo.receiverPhone.trim() ||
-      !shippingInfo.address.trim()
+      !shippingInfo.provinceCode ||
+      !shippingInfo.districtCode ||
+      !shippingInfo.wardCode ||
+      !shippingInfo.detail.trim()
     ) {
       setFormError("Vui lòng điền đầy đủ các thông tin bắt buộc (*).");
-      window.scrollTo(0, 0); // Cuộn lên đầu trang để người dùng thấy lỗi
+      window.scrollTo(0, 0);
       return;
     }
     setFormError("");
+
+    const fullAddress = `${shippingInfo.detail}, ${shippingInfo.wardName}, ${shippingInfo.districtName}, ${shippingInfo.provinceName}`;
 
     navigate("/payment", {
       state: {
         orderItems: selectedCartItems,
         customerInfo,
-        shippingInfo,
+        shippingInfo: { ...shippingInfo, fullAddress },
         subtotal: selectedSubtotal,
         savings,
         payable,
@@ -160,8 +166,7 @@ export default function OrderPage() {
                     type="text"
                     name="name"
                     value={customerInfo.name}
-                    onChange={handleInputChange(setCustomerInfo)}
-                    required
+                    onChange={handleCustomerInfoChange}
                   />
                 </Form.Group>
                 <Form.Group className="mb-3">
@@ -172,8 +177,7 @@ export default function OrderPage() {
                     type="email"
                     name="email"
                     value={customerInfo.email}
-                    onChange={handleInputChange(setCustomerInfo)}
-                    required
+                    onChange={handleCustomerInfoChange}
                   />
                 </Form.Group>
                 <Form.Group className="mb-3">
@@ -184,8 +188,7 @@ export default function OrderPage() {
                     type="tel"
                     name="phone"
                     value={customerInfo.phone}
-                    onChange={handleInputChange(setCustomerInfo)}
-                    required
+                    onChange={handleCustomerInfoChange}
                   />
                 </Form.Group>
               </Card.Body>
@@ -202,8 +205,7 @@ export default function OrderPage() {
                     type="text"
                     name="receiverName"
                     value={shippingInfo.receiverName}
-                    onChange={handleInputChange(setShippingInfo)}
-                    required
+                    onChange={handleDirectShippingInfoChange}
                   />
                 </Form.Group>
                 <Form.Group className="mb-3">
@@ -215,31 +217,21 @@ export default function OrderPage() {
                     type="tel"
                     name="receiverPhone"
                     value={shippingInfo.receiverPhone}
-                    onChange={handleInputChange(setShippingInfo)}
-                    required
+                    onChange={handleDirectShippingInfoChange}
                   />
                 </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    Địa chỉ nhận hàng <span className="text-danger">*</span>
-                  </Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    name="address"
-                    value={shippingInfo.address}
-                    onChange={handleInputChange(setShippingInfo)}
-                    required
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
+
+                {/* Component chọn địa chỉ chuyên dụng */}
+                <AddressSelector />
+
+                <Form.Group className="mt-3">
                   <Form.Label>Ghi chú (tùy chọn)</Form.Label>
                   <Form.Control
                     as="textarea"
                     rows={2}
                     name="note"
                     value={shippingInfo.note}
-                    onChange={handleInputChange(setShippingInfo)}
+                    onChange={handleDirectShippingInfoChange}
                   />
                 </Form.Group>
               </Card.Body>
