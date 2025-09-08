@@ -20,6 +20,7 @@ const userRoutes = [
       // Các trang khách hàng
       { path: "home", element: <Home /> },
       { path: ":category", element: <ProductCatalog /> },
+      { path: "products", element: <ProductCatalog /> },
       { path: ":category/:id", element: <ProductDetail /> },
       { path: "cart", element: <Cart /> },
       { path: "payment", element: <Payment /> },

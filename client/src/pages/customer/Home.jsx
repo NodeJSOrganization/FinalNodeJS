@@ -7,7 +7,6 @@ import {
   Tab,
   Alert,
   Image,
-  Form,
 } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import Logo from "../../assets/images/logo_white_space.png";
@@ -27,12 +26,6 @@ const Home = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("all");
-  const [sortBy, setSortBy] = useState("default");
-
-  // State cho lọc
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedBrand, setSelectedBrand] = useState("");
-  const [priceRange, setPriceRange] = useState({ min: 0, max: Infinity });
 
   useEffect(() => {
     const allProductsFromSample = Object.entries(ProductSampleData).flatMap(
@@ -68,44 +61,10 @@ const Home = () => {
     (product) => product.category === "hard-drives"
   );
 
-  const uniqueBrands = [
-    ...new Set(allProducts.map((product) => product.brand)),
-  ];
-
-  const parsePrice = (priceStr) => {
-    return parseInt(priceStr.replace(/[^0-9]/g, ""), 10) || 0;
-  };
-
-  const sortedProducts = [...allProducts].sort((a, b) => {
-    switch (sortBy) {
-      case "name-asc":
-        return a.name.localeCompare(b.name);
-      case "name-desc":
-        return b.name.localeCompare(a.name);
-      case "price-asc":
-        return (
-          parsePrice(a.variants[0].price) - parsePrice(b.variants[0].price)
-        );
-      case "price-desc":
-        return (
-          parsePrice(b.variants[0].price) - parsePrice(a.variants[0].price)
-        );
-      default:
-        return 0;
-    }
-  });
-
-  const filteredProducts = sortedProducts.filter((product) => {
+  const filteredProducts = allProducts.filter((product) => {
     const matchesCategory =
       activeTab === "all" || product.category === activeTab;
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesBrand = !selectedBrand || product.brand === selectedBrand;
-    const productPrice = parsePrice(product.variants[0].price);
-    const matchesPrice =
-      productPrice >= priceRange.min && productPrice <= priceRange.max;
-    return matchesCategory && matchesSearch && matchesBrand && matchesPrice;
+    return matchesCategory;
   });
 
   return (
@@ -165,7 +124,6 @@ const Home = () => {
           </Row>
         </Container>
       </div>
-
       <Alert
         variant="info"
         className="text-center py-3 mb-4 "
@@ -191,9 +149,7 @@ const Home = () => {
           Hết hạn trong 24 giờ 🔥
         </span>
       </Alert>
-
       <BestSeller bestSellers={bestSellers} />
-
       <section className="mb-5">
         <h1 className="text-center text-primary mb-4 mt-5">Sản phẩm mới</h1>
         <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
@@ -204,7 +160,6 @@ const Home = () => {
           ))}
         </Row>
       </section>
-
       <Alert
         variant="info"
         className="text-center py-3 mb-4 position-relative overflow-hidden"
@@ -237,7 +192,6 @@ const Home = () => {
           }}
         />
       </Alert>
-
       <section className="mb-5">
         <h2 className="text-center text-primary mb-4">Laptops</h2>
         <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4 flex-column flex-md-row">
@@ -248,7 +202,6 @@ const Home = () => {
           ))}
         </Row>
       </section>
-
       <Alert
         variant="info"
         className="text-center py-3 mb-4 position-relative overflow-hidden"
@@ -291,7 +244,6 @@ const Home = () => {
           ))}
         </Row>
       </section>
-
       <Alert
         variant="info"
         className="text-center py-3 mb-4 position-relative overflow-hidden"
@@ -334,7 +286,6 @@ const Home = () => {
           ))}
         </Row>
       </section>
-
       <Tabs
         defaultActiveKey="all"
         id="categories-tab"
@@ -347,8 +298,7 @@ const Home = () => {
         <Tab eventKey="monitors" title="Monitors"></Tab>
         <Tab eventKey="hard-drives" title="Hard Drives"></Tab>
       </Tabs>
-
-      {/* Phần điều khiển sắp xếp và lọc */}
+      {/* Phần điều khiển sắp xếp và lọc
       <div className="d-flex align-items-center justify-content-center gap-2 mb-4">
         <Form.Select
           value={sortBy}
@@ -411,8 +361,7 @@ const Home = () => {
             />
           </div>
         </div>
-      </div>
-
+      </div> */}
       <section className="mb-5">
         <h2 className="text-center text-primary mb-4">
           {activeTab === "all"
@@ -427,7 +376,6 @@ const Home = () => {
           ))}
         </Row>
       </section>
-
       <PaymentOffersSection heading="ƯU ĐÃI THANH TOÁN" data={paymentOffers} />
       <PaymentOffersSection heading="ƯU ĐÃI SINH VIÊN" data={studentOffers} />
       <PaymentOffersSection
