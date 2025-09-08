@@ -8,6 +8,8 @@ import Cart from "../pages/customer/CartPage.jsx";
 import ProductCatalog from "../pages/product/ProductCatalog.jsx";
 import ProductDetail from "../pages/product/ProductDetail.jsx";
 import Order from "../pages/customer/Order.jsx";
+import Payment from "../pages/customer/Payment.jsx";
+import OrderSuccessPage from "../pages/customer/OrderSuccess.jsx";
 
 const userRoutes = [
   {
@@ -20,7 +22,9 @@ const userRoutes = [
       { path: ":category", element: <ProductCatalog /> },
       { path: ":category/:id", element: <ProductDetail /> },
       { path: "cart", element: <Cart /> },
+      { path: "payment", element: <Payment /> },
       { path: "order", element: <Order /> },
+      { path: "order-success", element: <OrderSuccessPage /> },
 
       // Lồng toàn bộ account routes để dùng chung UserLayout
       // accountRoutes hiện có path "/account" → vẫn hoạt động bình thường.
