@@ -1,0 +1,14 @@
+.admin-layout {
+  min-height: 100vh;
+}
+
+.admin-content {
+  flex-grow: 1;
+  background-color: var(--content-bg);
+  margin-left: 260px; /* Bằng chiều rộng sidebar */
+  transition: margin-left 0.3s ease-in-out;
+}
+
+.admin-layout.sidebar-collapsed .admin-content {
+  margin-left: 80px; /* Bằng chiều rộng sidebar khi thu gọn */
+}

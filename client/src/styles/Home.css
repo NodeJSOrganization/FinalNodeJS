@@ -1,0 +1,49 @@
+.promo-banner {
+  background: linear-gradient(90deg, #b10024, #ff0000);
+  border-radius: 15px;
+  color: white;
+}
+
+.promo-offer {
+  background: linear-gradient(90deg, #ff4500, #ff6600);
+  border-radius: 25px;
+  color: white;
+  min-width: 220px;
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-pulse {
+  animation: pulse 1.5s infinite;
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
