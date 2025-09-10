@@ -225,6 +225,7 @@ export default function AccountOrderHistory() {
 
   const filtered = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
+    ("");
     return orders
       .filter((o) => (activeTab === STATUS.ALL ? true : o.status === activeTab))
       .filter((o) => {
@@ -536,11 +537,11 @@ export default function AccountOrderHistory() {
                                 {order.recipient?.phone}
                               </span>
                             </ListGroup.Item>
-                            <ListGroup.Item className="px-0">
-                              <div className="mb-1">Địa chỉ</div>
-                              <div className="fw-semibold">
+                            <ListGroup.Item className="px-0 d-flex justify-content-between">
+                              <span className="mb-1">Địa chỉ</span>
+                              <span className="fw-semibold">
                                 {order.recipient?.address}
-                              </div>
+                              </span>
                             </ListGroup.Item>
                           </ListGroup>
                         </div>
@@ -572,11 +573,13 @@ export default function AccountOrderHistory() {
                                     </div>
                                   </Col>
                                   <Col xs={9} md={6}>
-                                    <div className="fw-semibold">{it.name}</div>
-                                    <div className="text-muted small">
+                                    <div className="fw-semibold text-start">
+                                      {it.name}
+                                    </div>
+                                    <div className="text-muted small text-start">
                                       Phân loại: {it.variant}
                                     </div>
-                                    <div className="text-muted small">
+                                    <div className="text-muted small text-start">
                                       SL: x{it.qty}
                                     </div>
                                   </Col>
@@ -604,7 +607,7 @@ export default function AccountOrderHistory() {
                         </ListGroup>
 
                         {/* Tổng kết chi tiết */}
-                        <div className="mt-3 border-top pt-3">
+                        <div className="mt-3 border-top pt-3 text-start">
                           <Row className="small">
                             <Col className="text-muted">Tạm tính</Col>
                             <Col className="text-end fw-semibold">

@@ -5,7 +5,6 @@ import { NavLink } from "react-router-dom";
 const items = [
   { to: "profile", label: "Hồ sơ", icon: "bi bi-person-fill" },
   { to: "orders", label: "Đơn hàng", icon: "bi bi-box-seam-fill" },
-  { to: "vouchers", label: "Vouchers", icon: "bi bi-star-fill" },
   { to: "addresses", label: "Địa chỉ", icon: "bi bi-building-fill" },
   {
     to: "change-password",
