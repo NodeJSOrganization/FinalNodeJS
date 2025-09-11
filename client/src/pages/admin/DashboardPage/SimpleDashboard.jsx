@@ -1,15 +1,10 @@
-import React from "react";
-import { useState, useEffect } from "react";
-import { useWindowSize } from "../../../hooks/useWindowSize";
-import { Card, Col, Row, ProgressBar, Image } from "react-bootstrap";
-import {
-  FaUsers,
-  FaShoppingCart,
-  FaDollarSign,
-  FaChartBar,
-} from "react-icons/fa";
+import React from 'react';
+import { useState, useEffect } from 'react'; 
+import { useWindowSize } from '../../../hooks/useWindowSize'; 
+import { Card, Col, Row, ProgressBar, Image } from 'react-bootstrap';
+import { FaUsers, FaShoppingCart, FaDollarSign, FaChartBar } from 'react-icons/fa';
 
-import { Doughnut } from "react-chartjs-2";
+import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -18,23 +13,12 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement,
-} from "chart.js";
-
-import {
-  getSimpleDashboardData,
-  getSalesByCategory,
-} from "../../../data/dashboardData";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
   ArcElement
-);
+} from 'chart.js';
+
+import { getSimpleDashboardData, getSalesByCategory } from '../../../data/dashboardData';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 const StatCard = ({ icon, title, value, color }) => (
   <Card className={`text-white bg-${color} mb-4 card-custom`}>
@@ -56,100 +40,73 @@ const SimpleDashboard = () => {
   const [chartKey, setChartKey] = useState(0);
   const { width } = useWindowSize();
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setChartKey((prevKey) => prevKey + 1);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [width]);
-
   const doughnutData = {
     labels: categoryData.labels,
     datasets: [
       {
-        label: "Doanh thu",
+        label: 'Doanh thu',
         data: categoryData.data,
         backgroundColor: [
-          "rgba(13, 110, 253, 0.7)",
-          "rgba(25, 135, 84, 0.7)",
-          "rgba(255, 193, 7, 0.7)",
+          'rgba(13, 110, 253, 0.7)',
+          'rgba(25, 135, 84, 0.7)',
+          'rgba(255, 193, 7, 0.7)',
         ],
         borderColor: [
-          "rgba(13, 110, 253, 1)",
-          "rgba(25, 135, 84, 1)",
-          "rgba(255, 193, 7, 1)",
+          'rgba(13, 110, 253, 1)',
+          'rgba(25, 135, 84, 1)',
+          'rgba(255, 193, 7, 1)',
         ],
         borderWidth: 1,
       },
     ],
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setChartKey(prevKey => prevKey + 1);
+    }, 100);
+
+    return () => clearTimeout(timer); 
+  }, [width]);
+
   const doughnutOptions = {
     responsive: true,
     plugins: {
       legend: {
-        position: "top",
+        position: 'top',
       },
       title: {
         display: true,
-        text: "Tỷ lệ Doanh thu theo Danh mục",
-        font: { size: 16 },
+        text: 'Tỷ lệ Doanh thu theo Danh mục',
+        font: { size: 16 }
       },
     },
   };
 
-  const maxSold = Math.max(
-    ...simpleData.bestSellingProducts.map((p) => p.sold)
-  );
+  const maxSold = Math.max(...simpleData.bestSellingProducts.map(p => p.sold));
 
   return (
     <Row>
-      {/* 4 THẺ STAT CARD VẪN GIỮ NGUYÊN */}
       <Col md={6} xl={3}>
-        <StatCard
-          icon={<FaUsers />}
-          title="Tổng số người dùng"
-          value={simpleData.totalUsers}
-          color="primary"
-        />
+        <StatCard icon={<FaUsers />} title="Tổng số người dùng" value={simpleData.totalUsers} color="primary" />
       </Col>
       <Col md={6} xl={3}>
-        <StatCard
-          icon={<FaShoppingCart />}
-          title="Tổng số đơn hàng"
-          value={simpleData.totalOrders}
-          color="success"
-        />
+        <StatCard icon={<FaShoppingCart />} title="Tổng số đơn hàng" value={simpleData.totalOrders} color="success" />
       </Col>
       <Col md={6} xl={3}>
-        <StatCard
-          icon={<FaDollarSign />}
-          title="Tổng doanh thu"
-          value={`${(simpleData.totalRevenue / 1000000).toFixed(1)}M`}
-          color="warning"
-        />
+        <StatCard icon={<FaDollarSign />} title="Tổng doanh thu" value={`${(simpleData.totalRevenue / 1000000).toFixed(1)}M`} color="warning" />
       </Col>
       <Col md={6} xl={3}>
-        <StatCard
-          icon={<FaChartBar />}
-          title="Người dùng mới (tháng)"
-          value={simpleData.newUsersThisMonth}
-          color="info"
-        />
+        <StatCard icon={<FaChartBar />} title="Người dùng mới (tháng)" value={simpleData.newUsersThisMonth} color="info" />
       </Col>
 
-      <Row className="d-flex ">
+      <Row className="d-flex " >
         <Col xs={12} lg={5} className="mb-4">
           <Card className="card-custom h-100">
             <Card.Body>
               <div className="chart-container">
                 {/* ✨ THÊM "key" VÀO ĐÂY ✨ */}
-                <Doughnut
-                  key={chartKey}
-                  data={doughnutData}
-                  options={doughnutOptions}
-                />
+                <Doughnut key={chartKey} data={doughnutData} options={doughnutOptions} />
               </div>
             </Card.Body>
           </Card>
@@ -169,7 +126,7 @@ const SimpleDashboard = () => {
                     <small className="text-muted">{product.category}</small>
                   </div>
                   <div className="top-product-sales">
-                    <strong>{product.revenue.toLocaleString("vi-VN")}đ</strong>
+                    <strong>{product.revenue.toLocaleString('vi-VN')}đ</strong>
                     <ProgressBar
                       now={(product.sold / maxSold) * 100}
                       label={`${product.sold} sp`}

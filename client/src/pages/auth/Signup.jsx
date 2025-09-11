@@ -1,5 +1,5 @@
 import Logo from "../../assets/images/logo_white_space.png";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react"; // <-- Thêm useEffect
 import {
   Container,
   Row,
@@ -8,97 +8,173 @@ import {
   Button,
   InputGroup,
   FormControl,
+  Alert,
+  Spinner,
 } from "react-bootstrap";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
+import axios from "axios";
 
-// Demo dữ liệu Tỉnh/Thành -> Quận/Huyện -> Phường/Xã (rút gọn để minh hoạ)
-const VN_ADDRESS = {
-  "Hồ Chí Minh": {
-    "Quận 1": ["Phường Bến Nghé", "Phường Bến Thành", "Phường Đa Kao"],
-    "Bình Thạnh": ["Phường 1", "Phường 2", "Phường 3"],
-  },
-  "Hà Nội": {
-    "Hoàn Kiếm": ["Phường Hàng Bạc", "Phường Hàng Đào", "Phường Hàng Trống"],
-    "Cầu Giấy": ["Phường Dịch Vọng", "Phường Nghĩa Tân", "Phường Quan Hoa"],
-  },
-  "Đà Nẵng": {
-    "Hải Châu": ["Phường Hải Châu 1", "Phường Hải Châu 2"],
-    "Sơn Trà": ["Phường An Hải Bắc", "Phường Phước Mỹ"],
-  },
+// --- START: Cấu hình API địa chỉ ---
+const API_HOST = "https://provinces.open-api.vn/api/";
+
+const fetchAPI = async (endpoint) => {
+  try {
+    const response = await axios.get(API_HOST + endpoint);
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi khi gọi API địa chỉ:", error);
+    return []; // Trả về mảng rỗng nếu có lỗi
+  }
 };
+// --- END: Cấu hình API địa chỉ ---
+
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const togglePasswordVisibility = () => setShowPassword((s) => !s);
 
+  // --- START: State cho việc lưu trữ dữ liệu địa chỉ từ API ---
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  
+  // State cho việc loading các dropdown địa chỉ
+  const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [wardsLoading, setWardsLoading] = useState(false);
+  // --- END: State cho việc lưu trữ dữ liệu địa chỉ từ API ---
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     fullName: "",
-    houseNumber: "", // Số nhà, tên đường
+    phoneNumber: "",
+    streetAddress: "",
+    // Lưu cả code và name để dễ dàng xử lý
     province: "",
     district: "",
     ward: "",
+    provinceCode: null,
+    districtCode: null,
   });
 
-  const provinces = useMemo(() => Object.keys(VN_ADDRESS), []);
-  const districts = useMemo(() => {
-    if (!formData.province) return [];
-    return Object.keys(VN_ADDRESS[formData.province] || {});
-  }, [formData.province]);
-  const wards = useMemo(() => {
-    if (!formData.province || !formData.district) return [];
-    return VN_ADDRESS[formData.province]?.[formData.district] || [];
-  }, [formData.province, formData.district]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+
+  // --- START: useEffect để fetch dữ liệu địa chỉ ---
+
+  // 1. Fetch danh sách Tỉnh/Thành phố khi component được mount
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      const provinceData = await fetchAPI("p/");
+      setProvinces(provinceData);
+    };
+    fetchProvinces();
+  }, []); // Dependency rỗng, chỉ chạy 1 lần
+
+  // 2. Fetch danh sách Quận/Huyện khi Tỉnh/Thành phố thay đổi
+  useEffect(() => {
+    if (formData.provinceCode) {
+      const fetchDistricts = async () => {
+        setDistrictsLoading(true);
+        const districtData = await fetchAPI(`p/${formData.provinceCode}?depth=2`);
+        setDistricts(districtData.districts);
+        setDistrictsLoading(false);
+      };
+      fetchDistricts();
+    }
+  }, [formData.provinceCode]); // Chạy lại khi provinceCode thay đổi
+
+  // 3. Fetch danh sách Phường/Xã khi Quận/Huyện thay đổi
+  useEffect(() => {
+    if (formData.districtCode) {
+      const fetchWards = async () => {
+        setWardsLoading(true);
+        const wardData = await fetchAPI(`d/${formData.districtCode}?depth=2`);
+        setWards(wardData.wards);
+        setWardsLoading(false);
+      };
+      fetchWards();
+    }
+  }, [formData.districtCode]); // Chạy lại khi districtCode thay đổi
+
+  // --- END: useEffect để fetch dữ liệu địa chỉ ---
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // --- START: Cập nhật các hàm xử lý chọn địa chỉ ---
   const handleProvinceChange = (e) => {
-    const value = e.target.value;
+    const provinceCode = e.target.value;
+    const provinceName = e.target.options[e.target.selectedIndex].text;
     setFormData((prev) => ({
       ...prev,
-      province: value,
+      provinceCode: provinceCode,
+      province: provinceCode ? provinceName : "",
+      districtCode: null, // Reset quận/huyện và phường/xã khi tỉnh thay đổi
       district: "",
       ward: "",
     }));
+    setDistricts([]); // Xóa danh sách quận/huyện cũ
+    setWards([]); // Xóa danh sách phường/xã cũ
   };
+
   const handleDistrictChange = (e) => {
-    const value = e.target.value;
-    setFormData((prev) => ({ ...prev, district: value, ward: "" }));
+    const districtCode = e.target.value;
+    const districtName = e.target.options[e.target.selectedIndex].text;
+    setFormData((prev) => ({
+      ...prev,
+      districtCode: districtCode,
+      district: districtCode ? districtName : "",
+      ward: "", // Reset phường/xã khi quận/huyện thay đổi
+    }));
+    setWards([]); // Xóa danh sách phường/xã cũ
   };
+  
+  const handleWardChange = (e) => {
+    const wardName = e.target.options[e.target.selectedIndex].text;
+    setFormData((prev) => ({ ...prev, ward: e.target.value ? wardName : ""}));
+  }
+  // --- END: Cập nhật các hàm xử lý chọn địa chỉ ---
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const shippingAddress = [
-      formData.houseNumber,
-      formData.ward,
-      formData.district,
-      formData.province,
-    ]
-      .filter(Boolean)
-      .join(", ");
+    setError("");
+    setSuccess("");
 
-    // TODO: call API đăng ký tại đây
+    if (formData.password.length < 6) {
+      return setError("Mật khẩu phải có ít nhất 6 ký tự.");
+    }
+
     const payload = {
       email: formData.email,
       password: formData.password,
       fullName: formData.fullName,
-      shippingAddress,
-      // Có thể gửi kèm chi tiết nếu backend hỗ trợ:
-      addressDetail: {
-        houseNumber: formData.houseNumber,
+      phoneNumber: formData.phoneNumber,
+      address: {
+        streetAddress: formData.streetAddress,
         province: formData.province,
         district: formData.district,
         ward: formData.ward,
       },
     };
 
-    console.log("SUBMIT SIGNUP:", payload);
-    // Ví dụ: axios.post('/api/auth/signup', payload)
+    try {
+        setLoading(true);
+        const response = await axios.post('/api/auth/register', payload);
+        setSuccess(response.data.msg);
+    } catch (err) {
+        setError(err.response?.data?.msg || 'Đăng ký thất bại. Vui lòng thử lại.');
+    } finally {
+        setLoading(false);
+    }
   };
+
 
   return (
     <Container
@@ -121,8 +197,12 @@ const Signup = () => {
           />
           <h2 className="mt-3 mb-4 text-primary">Create New Account</h2>
           <p className="text-muted mb-4">Join our computer store today</p>
+          
+          {error && <Alert variant="danger" className="w-75">{error}</Alert>}
+          {success && <Alert variant="success" className="w-75">{success}</Alert>}
 
           <Form className="w-75" onSubmit={handleSubmit}>
+            {/* ... các Form.Group cho email, fullName, phoneNumber ... */}
             <Form.Group className="mb-3" controlId="formBasicEmail">
               <Form.Control
                 type="email"
@@ -144,31 +224,44 @@ const Signup = () => {
                 required
               />
             </Form.Group>
-
-            {/* Địa chỉ giao hàng: Số nhà, Tỉnh/Thành, Quận/Huyện, Phường/Xã */}
-            <Form.Group className="mb-3" controlId="formHouseNumber">
+            
+            <Form.Group className="mb-3" controlId="formPhoneNumber">
               <Form.Control
                 type="text"
-                placeholder="Số nhà, tên đường (ví dụ: 12/34 Nguyễn Trãi)"
-                name="houseNumber"
-                value={formData.houseNumber}
+                placeholder="Số điện thoại"
+                name="phoneNumber"
+                value={formData.phoneNumber}
                 onChange={handleChange}
                 required
               />
             </Form.Group>
 
+            <Form.Group className="mb-3" controlId="formStreetAddress">
+              <Form.Control
+                type="text"
+                placeholder="Số nhà, tên đường (ví dụ: 12/34 Nguyễn Trãi)"
+                name="streetAddress"
+                value={formData.streetAddress}
+                onChange={handleChange}
+                required
+              />
+            </Form.Group>
+            {/* --- END: các Form.Group ... --- */}
+
+
+            {/* --- START: Cập nhật Dropdown địa chỉ --- */}
             <Row className="g-3 mb-3">
               <Col md={4}>
                 <Form.Group controlId="formProvince">
                   <Form.Select
-                    value={formData.province}
+                    value={formData.provinceCode || ""}
                     onChange={handleProvinceChange}
                     required
                   >
                     <option value="">Tỉnh/Thành phố</option>
                     {provinces.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
+                      <option key={p.code} value={p.code}>
+                        {p.name}
                       </option>
                     ))}
                   </Form.Select>
@@ -178,15 +271,17 @@ const Signup = () => {
               <Col md={4}>
                 <Form.Group controlId="formDistrict">
                   <Form.Select
-                    value={formData.district}
+                    value={formData.districtCode || ""}
                     onChange={handleDistrictChange}
                     required
-                    disabled={!formData.province}
+                    disabled={!formData.provinceCode || districtsLoading}
                   >
-                    <option value="">Quận/Huyện</option>
+                    <option value="">
+                        {districtsLoading ? 'Đang tải...' : 'Quận/Huyện'}
+                    </option>
                     {districts.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
+                      <option key={d.code} value={d.code}>
+                        {d.name}
                       </option>
                     ))}
                   </Form.Select>
@@ -197,21 +292,25 @@ const Signup = () => {
                 <Form.Group controlId="formWard">
                   <Form.Select
                     name="ward"
-                    value={formData.ward}
-                    onChange={handleChange}
+                    value={formData.ward || ""}
+                    onChange={handleWardChange}
                     required
-                    disabled={!formData.district}
+                    disabled={!formData.districtCode || wardsLoading}
                   >
-                    <option value="">Phường/Xã</option>
+                     <option value="">
+                        {wardsLoading ? 'Đang tải...' : 'Phường/Xã'}
+                    </option>
                     {wards.map((w) => (
-                      <option key={w} value={w}>
-                        {w}
+                      <option key={w.code} value={w.name}>
+                        {w.name}
                       </option>
                     ))}
                   </Form.Select>
                 </Form.Group>
               </Col>
             </Row>
+            {/* --- END: Cập nhật Dropdown địa chỉ --- */}
+
 
             <Form.Group className="mb-3" controlId="formBasicPassword">
               <InputGroup>
@@ -232,8 +331,15 @@ const Signup = () => {
               </InputGroup>
             </Form.Group>
 
-            <Button variant="primary" type="submit" className="w-100 mb-3">
-              REGISTER
+            <Button variant="primary" type="submit" className="w-100 mb-3" disabled={loading}>
+              {loading ? (
+                <>
+                  <Spinner size="sm" animation="border" className="me-2" />
+                  Đang xử lý...
+                </>
+              ) : (
+                "REGISTER"
+              )}
             </Button>
           </Form>
 

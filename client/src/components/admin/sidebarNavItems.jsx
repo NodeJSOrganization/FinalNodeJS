@@ -4,7 +4,8 @@ import {
   FaUserPlus,
   FaBullhorn,
   FaSitemap,
-  FaCopyright
+  FaCopyright,
+  
 } from 'react-icons/fa';
 
 
@@ -136,9 +137,10 @@ export const sidebarNavItems = [
     icon: <FaShoppingCart />,
   },
   {
-    key: 'homescreen',
-    title: 'Trang chủ',
-    path: '/admin/home',
+    key: 'inventory', // Đổi key cho nhất quán
+    title: 'Tồn Kho',
+    path: '/admin/inventory', // SỬA LẠI ĐƯỜNG DẪN NÀY
     icon: <FaWarehouse />,
-  }
+  },
+
 ];

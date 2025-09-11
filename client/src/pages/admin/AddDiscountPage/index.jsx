@@ -1,34 +1,65 @@
 // src/pages/admin/AddDiscountPage/index.jsx
 import React, { useState } from 'react';
-import { Form, Button, Card, Row, Col, InputGroup, Alert } from 'react-bootstrap';
-import { FaTags, FaTicketAlt, FaInfoCircle, FaCalendarAlt } from 'react-icons/fa';
+import { Form, Button, Card, Row, Col, InputGroup, Alert, Spinner } from 'react-bootstrap';
+import { FaTags, FaTicketAlt, FaInfoCircle } from 'react-icons/fa';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const AddDiscountPage = () => {
-  // State cho các trường của form
-  const [promoCode, setPromoCode] = useState('');
-  const [description, setDescription] = useState('');
-  const [promoType, setPromoType] = useState('percent'); // 'percent', 'fixed', 'free_shipping'
-  const [promoValue, setPromoValue] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [status, setStatus] = useState('Hoạt động');
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  // --- Đồng bộ state với API backend ---
+  const [code, setCode] = useState('');
+  const [description, setDescription] = useState('');
+  const [type, setType] = useState('fixed_amount'); // 'percent' hoặc 'fixed_amount'
+  const [value, setValue] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [status, setStatus] = useState('active'); // 'active' hoặc 'inactive'
+
+  // State cho việc gọi API
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const discountData = {
-      promoCode,
-      description,
-      promoType,
-      promoValue: promoType === 'free_shipping' ? 'Free' : promoValue, // Xử lý cho free shipping
-      quantity,
-      startDate,
-      endDate,
-      status,
-      createdAt: new Date().toISOString()
+    setError('');
+    setSuccess('');
+
+
+    const payload = {
+        code,
+        description,
+        type,
+        value,
+        quantity,
+        status
     };
-    console.log("Dữ liệu mã giảm giá mới:", discountData);
-    alert('Mã giảm giá đã được tạo! (Kiểm tra console log)');
+
+    try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setError("Phiên đăng nhập đã hết hạn.");
+            setLoading(false);
+            return;
+        }
+
+        const config = {
+            headers: { Authorization: `Bearer ${token}` }
+        };
+
+        await axios.post('/api/v1/discounts', payload, config);
+        
+        setSuccess('Tạo mã giảm giá thành công! Đang chuyển hướng...');
+        setTimeout(() => navigate('/admin/discounts'), 2000);
+
+    } catch (err) {
+        setError(err.response?.data?.msg || 'Tạo mã giảm giá thất bại.');
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
@@ -41,7 +72,10 @@ const AddDiscountPage = () => {
                 <Card.Title as="h4"><FaTags className="me-2"/>Tạo Mã giảm giá mới</Card.Title>
               </Card.Header>
               <Card.Body>
-                <Form.Group className="mb-3" controlId="promoCode">
+                {error && <Alert variant="danger">{error}</Alert>}
+                {success && <Alert variant="success">{success}</Alert>}
+
+                <Form.Group className="mb-3" controlId="code">
                   <Form.Label>Mã giảm giá</Form.Label>
                   <InputGroup>
                     <InputGroup.Text><FaTicketAlt /></InputGroup.Text>
@@ -49,13 +83,13 @@ const AddDiscountPage = () => {
                       type="text" 
                       placeholder="VD: SALE50K" 
                       required 
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
                     />
                   </InputGroup>
                 </Form.Group>
 
-                <Form.Group className="mb-3" controlId="promoDescription">
+                <Form.Group className="mb-3" controlId="description">
                   <Form.Label>Mô tả</Form.Label>
                   <Form.Control 
                     as="textarea" 
@@ -69,29 +103,28 @@ const AddDiscountPage = () => {
 
                 <Row>
                   <Col md={4}>
-                    <Form.Group className="mb-3" controlId="promoType">
+                    <Form.Group className="mb-3" controlId="type">
                       <Form.Label>Loại giảm giá</Form.Label>
-                      <Form.Select value={promoType} onChange={(e) => setPromoType(e.target.value)}>
+                      {/* --- Bỏ free_shipping, đổi giá trị cho khớp API --- */}
+                      <Form.Select value={type} onChange={(e) => setType(e.target.value)}>
+                        <option value="fixed_amount">Giảm tiền mặt</option>
                         <option value="percent">Giảm theo %</option>
-                        <option value="fixed">Giảm tiền mặt</option>
-                        <option value="free_shipping">Miễn phí vận chuyển</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
                   <Col md={4}>
-                    <Form.Group className="mb-3" controlId="promoValue">
+                    <Form.Group className="mb-3" controlId="value">
                       <Form.Label>Giá trị</Form.Label>
                       <InputGroup>
                         <Form.Control 
                           type="number" 
-                          placeholder={promoType === 'percent' ? "15" : "50000"}
-                          value={promoValue}
-                          onChange={(e) => setPromoValue(e.target.value)}
-                          disabled={promoType === 'free_shipping'} // Vô hiệu hóa khi là free shipping
-                          required={promoType !== 'free_shipping'}
+                          placeholder={type === 'percent' ? "15" : "50000"}
+                          required
+                          value={value}
+                          onChange={(e) => setValue(e.target.value)}
                         />
                         <InputGroup.Text>
-                          {promoType === 'percent' ? '%' : 'đ'}
+                          {type === 'percent' ? '%' : 'VNĐ'}
                         </InputGroup.Text>
                       </InputGroup>
                     </Form.Group>
@@ -110,32 +143,27 @@ const AddDiscountPage = () => {
                   </Col>
                 </Row>
 
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3" controlId="startDate">
-                      <Form.Label>Ngày bắt đầu</Form.Label>
-                      <Form.Control type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3" controlId="endDate">
-                      <Form.Label>Ngày kết thúc</Form.Label>
-                      <Form.Control type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                    </Form.Group>
-                  </Col>
-                </Row>
+          
                 
                  <Form.Group className="mb-3" controlId="status">
                   <Form.Label>Trạng thái</Form.Label>
+                  {/* --- Sửa giá trị cho khớp API --- */}
                   <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                    <option value="Hoạt động">Hoạt động</option>
-                    <option value="Không hoạt động">Không hoạt động</option>
+                    <option value="active">Hoạt động</option>
+                    <option value="inactive">Không hoạt động</option>
                   </Form.Select>
                 </Form.Group>
               </Card.Body>
               <Card.Footer className="text-end">
-                <Button variant="secondary" type="button" className="me-2">Hủy</Button>
-                <Button variant="primary" type="submit">Lưu mã giảm giá</Button>
+                <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/discounts')}>Hủy</Button>
+                <Button variant="primary" type="submit" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Spinner as="span" animation="border" size="sm" />
+                      {' '}Đang lưu...
+                    </>
+                  ) : 'Lưu mã giảm giá'}
+                </Button>
               </Card.Footer>
             </Card>
           </Form>
@@ -150,7 +178,6 @@ const AddDiscountPage = () => {
               <Alert variant="info">
                 <ul className="mb-0 ps-3">
                   <li><strong>Loại giảm giá:</strong> Chọn loại phù hợp nhất với chiến dịch của bạn.</li>
-                  <li><strong>Giá trị:</strong> Nếu chọn "Miễn phí vận chuyển", ô giá trị sẽ tự động bị vô hiệu hóa.</li>
                   <li><strong>Số lượng:</strong> Tổng số lần mã này có thể được sử dụng.</li>
                   <li>Mã sẽ có hiệu lực từ <strong>00:00</strong> ngày bắt đầu đến <strong>23:59</strong> ngày kết thúc.</li>
                 </ul>
