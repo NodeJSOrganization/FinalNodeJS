@@ -1,89 +1,279 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { FaTh, FaList } from "react-icons/fa";
+import {
+  Container,
+  ButtonGroup,
+  Button,
+  Row,
+  Col,
+  Pagination,
+  Card,
+  Form,
+} from "react-bootstrap";
 import { ProductSampleData } from "../../data/ProductSampleData";
 import { useDispatch, useSelector } from "react-redux";
 import { setProducts } from "../../../features/product/productReducer";
 import ProductItem from "../../components/product/ProductItem";
 
-const ProductCatalog = () => {
-  const products = useSelector((state) => state.product.products);
+const filters = [
+  { key: "all", label: "Tất cả sản phẩm" },
+  { key: "laptops", label: "Laptops" },
+  { key: "monitors", label: "Monitors" },
+  { key: "hard-drives", label: "Hard Drives" },
+];
 
+const ProductCatalog = () => {
+  const allProducts = useSelector((state) => state.product.products);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const { category: categoryFromUrl } = useParams();
+
+  const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState("grid");
-  const { category } = useParams();
+  const [sortBy, setSortBy] = useState("default");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBrand, setSelectedBrand] = useState("");
+  const [priceRange, setPriceRange] = useState({ min: 0, max: Infinity });
 
-  const productsPerPage = 6;
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = products.slice(
-    indexOfFirstProduct,
-    indexOfLastProduct
+  const uniqueBrands = useMemo(
+    () => [...new Set(allProducts.map((product) => product.brand))],
+    [allProducts]
   );
-  const totalPages = Math.ceil(products.length / productsPerPage);
 
   useEffect(() => {
-    if (!category || !Object.keys(ProductSampleData).includes(category)) {
-      const allProducts = Object.values(ProductSampleData).flat();
-
-      console.log("allProduct", allProducts);
-      dispatch(setProducts(allProducts));
-    } else {
-      console.log("aa");
-      dispatch(setProducts(ProductSampleData[category] || []));
+    if (allProducts.length === 0) {
+      const allProductsData = Object.values(ProductSampleData).flat();
+      dispatch(setProducts(allProductsData));
     }
+  }, [dispatch, allProducts.length]);
+
+  useEffect(() => {
+    setActiveFilter(categoryFromUrl || "all");
+  }, [categoryFromUrl]);
+
+  useEffect(() => {
     setCurrentPage(1);
-  }, [category]);
+  }, [activeFilter, sortBy, searchTerm, selectedBrand, priceRange]);
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  const toggleView = () => {
-    setViewMode(viewMode === "grid" ? "list" : "grid");
+  const parsePrice = (priceStr) => {
+    return parseInt(priceStr.replace(/[^0-9]/g, ""), 10) || 0;
   };
 
+  const filteredProducts = useMemo(() => {
+    let products = [...allProducts];
+
+    if (activeFilter !== "all") {
+      products = products.filter(
+        (product) => product.category === activeFilter
+      );
+    }
+
+    if (searchTerm) {
+      products = products.filter((product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (selectedBrand) {
+      products = products.filter((product) => product.brand === selectedBrand);
+    }
+
+    products = products.filter((product) => {
+      const productPrice = parsePrice(product.variants[0].price);
+      return productPrice >= priceRange.min && productPrice <= priceRange.max;
+    });
+
+    switch (sortBy) {
+      case "name-asc":
+        products.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "name-desc":
+        products.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case "price-asc":
+        products.sort(
+          (a, b) =>
+            parsePrice(a.variants[0].price) - parsePrice(b.variants[0].price)
+        );
+        break;
+      case "price-desc":
+        products.sort(
+          (a, b) =>
+            parsePrice(b.variants[0].price) - parsePrice(a.variants[0].price)
+        );
+        break;
+      default:
+        break;
+    }
+
+    return products;
+  }, [
+    allProducts,
+    activeFilter,
+    searchTerm,
+    selectedBrand,
+    priceRange,
+    sortBy,
+  ]);
+
+  const productsPerPage = 6;
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  const currentProducts = filteredProducts.slice(
+    (currentPage - 1) * productsPerPage,
+    currentPage * productsPerPage
+  );
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const toggleView = () => setViewMode(viewMode === "grid" ? "list" : "grid");
+
+  const handleFilterClick = (filterKey) => {
+    const path = filterKey === "all" ? "/products" : `/${filterKey}`;
+    navigate(path);
+  };
+
+  const currentCategoryName =
+    filters.find((f) => f.key === activeFilter)?.label || "Sản phẩm";
+
   return (
-    <div className="container py-4 ">
-      <h2 className="text-primary">
-        Danh mục: {category.charAt(0).toUpperCase() + category.slice(1)}
-      </h2>
-      <div className="d-flex justify-content-end mb-3">
-        <button className="btn btn-outline-primary me-2" onClick={toggleView}>
-          {viewMode === "grid" ? <FaList /> : <FaTh />} Switch View
-        </button>
+    <Container className="py-4">
+      <Row className="align-items-center mb-4">
+        <Col>
+          <h2 className="text-primary mb-0">{currentCategoryName}</h2>
+        </Col>
+        <Col xs="auto">
+          <Button variant="outline-primary" onClick={toggleView}>
+            {viewMode === "grid" ? <FaList /> : <FaTh />}
+          </Button>
+        </Col>
+      </Row>
+
+      <div className="mb-4">
+        <ButtonGroup className="flex-wrap">
+          {filters.map((filter) => (
+            <Button
+              key={filter.key}
+              variant={
+                activeFilter === filter.key ? "primary" : "outline-primary"
+              }
+              onClick={() => handleFilterClick(filter.key)}
+              className="m-1"
+            >
+              {filter.label}
+            </Button>
+          ))}
+        </ButtonGroup>
       </div>
-      <div
+
+      <Row className="g-2 mb-4 p-3 bg-light border rounded">
+        <Col md={3} sm={6} className="mb-2 mb-md-0">
+          <Form.Control
+            type="text"
+            placeholder="Tìm kiếm theo tên..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </Col>
+        <Col md={3} sm={6} className="mb-2 mb-md-0">
+          <Form.Select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="default">Sắp xếp mặc định</option>
+            <option value="name-asc">Tên (A-Z)</option>
+            <option value="name-desc">Tên (Z-A)</option>
+            <option value="price-asc">Giá (Thấp đến Cao)</option>
+            <option value="price-desc">Giá (Cao đến Thấp)</option>
+          </Form.Select>
+        </Col>
+        <Col md={3} sm={6} className="mb-2 mb-md-0">
+          <Form.Select
+            value={selectedBrand}
+            onChange={(e) => setSelectedBrand(e.target.value)}
+          >
+            <option value="">Tất cả thương hiệu</option>
+            {uniqueBrands.map((brand) => (
+              <option key={brand} value={brand}>
+                {brand}
+              </option>
+            ))}
+          </Form.Select>
+        </Col>
+        <Col md={3} sm={6} className="mb-2 mb-md-0">
+          <div className="d-flex gap-2">
+            <Form.Control
+              type="number"
+              placeholder="Giá từ"
+              value={priceRange.min === 0 ? "" : priceRange.min}
+              onChange={(e) =>
+                setPriceRange({
+                  ...priceRange,
+                  min: parseInt(e.target.value) || 0,
+                })
+              }
+            />
+            <Form.Control
+              type="number"
+              placeholder="Giá đến"
+              value={priceRange.max === Infinity ? "" : priceRange.max}
+              onChange={(e) =>
+                setPriceRange({
+                  ...priceRange,
+                  max: parseInt(e.target.value) || Infinity,
+                })
+              }
+            />
+          </div>
+        </Col>
+      </Row>
+
+      <Row
         className={
           viewMode === "grid"
-            ? "row row-cols-1 row-cols-md-2 row-cols-lg-3 g-5"
-            : "d-flex flex-column gap-4"
+            ? "g-4 row-cols-1 row-cols-md-2 row-cols-lg-3"
+            : "g-4 flex-column"
         }
       >
         {currentProducts.length > 0 ? (
           currentProducts.map((product) => (
-            <div key={product.id} className={viewMode === "grid" ? "col" : ""}>
-              <ProductItem product={product} category={category} />
-            </div>
+            <Col key={product.id}>
+              <ProductItem
+                product={product}
+                category={product.category}
+                viewMode={viewMode}
+              />
+            </Col>
           ))
         ) : (
-          <p>Không có sản phẩm trong danh mục này.</p>
+          <Col xs={12}>
+            <Card className="text-center p-5">
+              <Card.Body>
+                <Card.Title>Không tìm thấy sản phẩm</Card.Title>
+                <Card.Text className="text-muted">
+                  Vui lòng thử điều chỉnh lại bộ lọc của bạn.
+                </Card.Text>
+              </Card.Body>
+            </Card>
+          </Col>
         )}
-      </div>
-      <nav className="mt-4">
-        <ul className="pagination justify-content-center">
+      </Row>
+
+      {totalPages > 1 && (
+        <Pagination className="justify-content-center mt-4">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-            <li
+            <Pagination.Item
               key={number}
-              className={`page-item ${currentPage === number ? "active" : ""}`}
+              active={number === currentPage}
+              onClick={() => paginate(number)}
             >
-              <button className="page-link" onClick={() => paginate(number)}>
-                {number}
-              </button>
-            </li>
+              {number}
+            </Pagination.Item>
           ))}
-        </ul>
-      </nav>
-    </div>
+        </Pagination>
+      )}
+    </Container>
   );
 };
 
