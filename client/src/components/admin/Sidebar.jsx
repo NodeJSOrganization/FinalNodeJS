@@ -1,19 +1,18 @@
+// --- START OF FILE src/components/Sidebar/Sidebar.jsx ---
+
 import React, { useState } from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { FaAngleLeft, FaAngleRight, FaSignOutAlt } from 'react-icons/fa';
 import { sidebarNavItems } from "./sidebarNavItems.jsx";
 import "./Sidebar.css";
-import userAvatar from "../../assets/images/spidermen.jpg";
+import { useSelector, useDispatch } from 'react-redux'; // Import hooks của Redux
+import { logout } from '../../../features/auth/authSlice.js'; // Import action logout
 
-// ✨ PHẦN 1: TẠO COMPONENT CON CÓ KHẢ NĂNG "TỰ GỌI LẠI CHÍNH NÓ" (ĐỆ QUY) ✨
+// Component MenuItem giữ nguyên như cũ, không cần thay đổi
 const MenuItem = ({ item, openKeys, handleMenuClick }) => {
-  // Kiểm tra xem menu này có đang mở hay không
   const isActive = openKeys.includes(item.key);
-
-  // NẾU item này có con (children)
   if (item.children) {
     return (
-      // Thêm class 'open' nếu menu đang mở
       <li className={isActive ? 'open' : ''}>
         <a
           href="#"
@@ -26,7 +25,6 @@ const MenuItem = ({ item, openKeys, handleMenuClick }) => {
         <ul className="list-unstyled sidebar-submenu">
           <div>
             {item.children.map((child) => (
-              // ✨ ĐÂY LÀ ĐỆ QUY: MenuItem lại render ra chính nó cho mỗi mục con ✨
               <MenuItem
                 key={child.key}
                 item={child}
@@ -39,7 +37,6 @@ const MenuItem = ({ item, openKeys, handleMenuClick }) => {
       </li>
     );
   }
-  // NẾU item này KHÔNG có con
   else {
     return (
       <li>
@@ -52,26 +49,39 @@ const MenuItem = ({ item, openKeys, handleMenuClick }) => {
   }
 };
 
-// ✨ COMPONENT SIDEBAR CHÍNH BÂY GIỜ GỌN GÀNG HƠN RẤT NHIỀU ✨
+
+// Component Sidebar chính
 const Sidebar = ({ isCollapsed, setCollapsed }) => {
-  // ✨ PHẦN 2: THAY ĐỔI CÁCH LƯU TRẠNG THÁI ✨
-  // Thay vì chỉ lưu 1 menu đang mở (string/null), ta lưu một MẢNG các menu đang mở
   const [openKeys, setOpenKeys] = useState([]);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // Lấy thông tin user từ Redux store
+  const { user } = useSelector((state) => state.auth);
 
   const handleToggleCollapse = () => {
     setCollapsed(!isCollapsed);
-    setOpenKeys([]); // Đóng tất cả menu khi thu gọn
+    setOpenKeys([]);
   };
 
-  // ✨ PHẦN 3: CẬP NHẬT LOGIC XỬ LÝ CLICK ✨
-  // Logic mới để thêm/bớt key khỏi mảng state
   const handleMenuClick = (key) => {
     setOpenKeys(prevKeys =>
       prevKeys.includes(key)
-        ? prevKeys.filter(k => k !== key) // Nếu key đã có trong mảng -> xóa đi (đóng menu)
-        : [...prevKeys, key]              // Nếu key chưa có -> thêm vào (mở menu)
+        ? prevKeys.filter(k => k !== key)
+        : [...prevKeys, key]
     );
   };
+
+  // Hàm xử lý đăng xuất
+  const handleLogout = () => {
+    dispatch(logout()); // Gửi action logout đến Redux
+    navigate('/login'); // Chuyển hướng về trang đăng nhập
+  };
+
+  // Chuẩn bị dữ liệu để hiển thị
+  const adminName = user ? user.fullName : 'Admin';
+  const adminAvatar = user && user.avatar ? user.avatar.url : userAvatar;
+  const adminRole = user ? user.role : 'Administrator';
 
   return (
     <nav className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
@@ -85,8 +95,6 @@ const Sidebar = ({ isCollapsed, setCollapsed }) => {
       </div>
 
       <ul className="list-unstyled components">
-        {/* ✨ PHẦN 4: SỬ DỤNG COMPONENT ĐỆ QUY ✨ */}
-        {/* Thay vì logic phức tạp, giờ ta chỉ cần gọi MenuItem cho mỗi mục cấp 1 */}
         {sidebarNavItems.map((item) => (
           <MenuItem
             key={item.key}
@@ -99,13 +107,13 @@ const Sidebar = ({ isCollapsed, setCollapsed }) => {
 
       <div className="sidebar-footer">
         <div className="user-profile">
-          <img src={userAvatar} alt="User Avatar" />
+          <img src={adminAvatar} alt="User Avatar" />
           <div className="user-info">
-            <h4>An</h4>
-            <p>Administrator</p>
+            <h4>{adminName}</h4>
+            <p style={{ textTransform: 'capitalize' }}>{adminRole}</p>
           </div>
         </div>
-        <button className="logout-btn">
+        <button className="logout-btn" onClick={handleLogout}>
           <FaSignOutAlt />
         </button>
       </div>

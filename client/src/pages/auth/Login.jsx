@@ -1,5 +1,7 @@
+// --- START OF FILE Login.jsx ---
+
 import Logo from "../../assets/images/logo_white_space.png";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -8,25 +10,53 @@ import {
   Button,
   InputGroup,
   FormControl,
+  Alert,
+  Spinner,
 } from "react-bootstrap";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux"; // Import hooks của Redux
+import  { loginUser } from "../../../features/auth/authSlice";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
+  // State cục bộ cho input
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const onChangeEmail = (e) => {
-    setEmail(e.target.value);
-  };
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  const onChangePassword = (e) => {
-    setPassword(e.target.value);
+  // Lấy state từ Redux store
+  const { user, isLoading, isError, isSuccess, message } = useSelector(
+    (state) => state.auth
+  );
+
+  // Xử lý chuyển hướng và các tác vụ phụ sau khi state Redux thay đổi
+  useEffect(() => {
+    if (isSuccess && user) {
+      if (user.role === 'admin') {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/");
+      }
+    }
+  }, [user, isSuccess, navigate]);
+
+  // Hàm xử lý submit form
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!email || !password) {
+      // Bạn có thể thêm validation ở đây nếu muốn
+      return;
+    }
+    
+    const userData = { email, password };
+    // Gửi action đăng nhập đến Redux
+    dispatch(loginUser(userData));
   };
 
   return (
@@ -50,13 +80,17 @@ const Login = () => {
           />
           <h2 className="mt-3 mb-4 text-primary">Computer Store Login</h2>
           <p className="text-muted mb-4">Please login to your account</p>
-          <Form className="w-75">
+          
+          {/* Hiển thị lỗi từ Redux state */}
+          {isError && <Alert variant="danger" className="w-75">{message}</Alert>}
+
+          <Form className="w-75" onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="formBasicEmail">
               <Form.Control
                 type="email"
                 placeholder="Email"
                 value={email}
-                onChange={onChangeEmail}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </Form.Group>
 
@@ -66,7 +100,7 @@ const Login = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   value={password}
-                  onChange={onChangePassword}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
                 <InputGroup.Text
                   onClick={togglePasswordVisibility}
@@ -76,9 +110,16 @@ const Login = () => {
                 </InputGroup.Text>
               </InputGroup>
             </Form.Group>
-
-            <Button variant="primary" type="submit" className="w-100 mb-3">
-              LOG IN
+            
+            <Button variant="primary" type="submit" className="w-100 mb-3" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Spinner size="sm" animation="border" className="me-2" />
+                  Đang đăng nhập...
+                </>
+              ) : (
+                "LOG IN"
+              )}
             </Button>
           </Form>
           <a href="/forgot-password" className="text-primary mb-3">

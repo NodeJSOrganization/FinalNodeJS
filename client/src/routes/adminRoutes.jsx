@@ -15,7 +15,14 @@ import AddCategoryPage from '../pages/admin/AddCategoryPage';
 import AddBrandPage from '../pages/admin/AddBrandPage';
 import AddUserPage from '../pages/admin/AddUserPage';
 import AddDiscountPage from '../pages/admin/AddDiscountPage';
-import OrderDetailPage from '../pages/admin/OrderDetailPage';  
+import OrderDetailPage from '../pages/admin/OrderDetailPage';
+import EditBrandPage from '../pages/admin/EditBrandPage';
+import EditCategoryPage from '../pages/admin/EditCategoryPage';
+import EditProductPage from '../pages/admin/EditProductPage';
+import EditDiscountPage from '../pages/admin/EditDiscountPage';
+import EditPromotionPage from '../pages/admin/EditPromotionPage';
+import EditUserPage from '../pages/admin/EditUserPage';
+import InventoryManagementPage from '../pages/admin/InventoryManagementPage';
 const Placeholder = ({ title }) => <h2>{title}</h2>;
 const adminRoutes = [
   {
@@ -24,19 +31,26 @@ const adminRoutes = [
     children: [
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'products', element: <ProductManagementPage /> },
-      { path: 'products/add', element: <AddProductPage /> }, 
+      { path: 'products/add', element: <AddProductPage /> },
       { path: 'users', element: <UserManagementPage /> },
       { path: 'users/add', element: <AddUserPage /> },
+      { path: 'users/edit/:id', element: <EditUserPage /> }, 
       { path: 'orders', element: <OrderManagementPage /> },
       { path: 'discounts', element: <DiscountManagementPage /> },
-       { path: 'discounts/add', element: <AddDiscountPage /> },
+      { path: 'discounts/add', element: <AddDiscountPage /> },
       { path: 'promotions', element: <PromotionManagementPage /> },
       { path: 'promotions/add', element: <AddPromotionPage /> },
+      { path: 'promotions/edit/:id', element: <EditPromotionPage /> },
       { path: 'categories', element: <CategoryListPage /> },
       { path: 'categories/add', element: <AddCategoryPage /> },
       { path: 'brands', element: <BrandListPage /> },
       { path: 'brands/add', element: <AddBrandPage /> },
-      { path: 'orders/:orderId', element: <OrderDetailPage /> }, 
+      { path: 'brands/edit/:id', element: <EditBrandPage /> },
+      { path: 'orders/:orderId', element: <OrderDetailPage /> },
+      { path: 'categories/edit/:id', element: <EditCategoryPage /> },
+      { path: 'products/edit/:id', element: <EditProductPage /> },
+      { path: 'discounts/edit/:id', element: <EditDiscountPage /> },
+      { path: 'inventory', element: <InventoryManagementPage /> },
     ],
   },
 ];

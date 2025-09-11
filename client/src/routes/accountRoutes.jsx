@@ -7,6 +7,7 @@ import AccountOrderHistory from "../pages/account/AccountOrderHistory/index.jsx"
 import AccountAddress from "../pages/account/AccountAddress/index.jsx";
 import AccountChangePassword from "../pages/account/AccountChangePassword/index.jsx";
 
+
 const accountRoutes = [
   {
     path: "/account",

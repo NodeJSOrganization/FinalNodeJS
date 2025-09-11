@@ -1,70 +1,92 @@
-// src/pages/admin/AddProductPage/index.jsx
+// src/pages/admin/EditProductPage/index.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Row, Col, InputGroup, Image, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, Image, Alert, Spinner, InputGroup } from 'react-bootstrap';
 import { FaBoxes, FaTags, FaImage, FaPlusCircle, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import './AddProductPage.css';
+import { useNavigate, useParams } from 'react-router-dom';
+// Tái sử dụng CSS từ trang AddProductPage
+import '../AddProductPage/AddProductPage.css';
 
-const AddProductPage = () => {
+const EditProductPage = () => {
     const navigate = useNavigate();
+    const { id } = useParams();
 
-    // State cho thông tin cơ bản của sản phẩm
+    // State cho form
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [brand, setBrand] = useState('');
     const [category, setCategory] = useState('');
-    const [images, setImages] = useState([]); // Lưu trữ mảng file ảnh chính
-    const [imagePreviews, setImagePreviews] = useState([]); // Lưu trữ mảng URL xem trước
 
-    // State cho các biến thể (variants)
-    const [variants, setVariants] = useState([
-        { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, imagePreview: '' }
-    ]);
+    // State cho ảnh
+    const [existingImages, setExistingImages] = useState([]); // Ảnh cũ từ server
+    const [newImages, setNewImages] = useState([]); // File ảnh mới
+    const [newImagePreviews, setNewImagePreviews] = useState([]); // Xem trước ảnh mới
+    const [deletedCloudinaryIds, setDeletedCloudinaryIds] = useState([]); // ID ảnh cũ cần xóa
 
-    // State để lấy dữ liệu cho dropdowns
+    // State cho biến thể
+    const [variants, setVariants] = useState([]);
+
+    // State phụ
     const [allBrands, setAllBrands] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
-
-    // State cho API
     const [loading, setLoading] = useState(false);
+    const [fetchLoading, setFetchLoading] = useState(true);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // --- LẤY DỮ LIỆU BRANDS VÀ CATEGORIES TỪ API ---
+    // Fetch dữ liệu sản phẩm và dữ liệu phụ (brand, category)
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [brandsRes, categoriesRes] = await Promise.all([
+                const [productRes, brandsRes, categoriesRes] = await Promise.all([
+                    axios.get(`/api/v1/products/${id}`),
                     axios.get('/api/v1/brands'),
                     axios.get('/api/v1/categories')
                 ]);
+
+                const productData = productRes.data.data;
+                setName(productData.name);
+                setDescription(productData.description);
+                setBrand(productData.brand._id);
+                setCategory(productData.category._id);
+                setExistingImages(productData.images || []);
+                // Thêm imagePreview cho variant để hiển thị ảnh cũ
+                setVariants(productData.variants.map(v => ({ ...v, imagePreview: v.image?.url || '', newImage: null })) || []);
+
                 setAllBrands(brandsRes.data.data);
                 setAllCategories(categoriesRes.data.data);
+
             } catch (err) {
-                setError('Không thể tải dữ liệu cho Thương hiệu và Danh mục.');
+                setError('Không thể tải dữ liệu sản phẩm.');
+            } finally {
+                setFetchLoading(false);
             }
         };
         fetchData();
-    }, []);
+    }, [id]);
 
-    // --- CÁC HÀM XỬ LÝ FORM (giữ nguyên và cải tiến) ---
-    const handleMainImagesChange = (e) => {
+    // Các hàm xử lý ảnh chính
+    const handleNewImagesChange = (e) => {
         const files = Array.from(e.target.files);
-        const newPreviews = files.map(file => URL.createObjectURL(file));
-        setImages(prev => [...prev, ...files]);
-        setImagePreviews(prev => [...prev, ...newPreviews]);
+        const previews = files.map(f => URL.createObjectURL(f));
+        setNewImages(prev => [...prev, ...files]);
+        setNewImagePreviews(prev => [...prev, ...previews]);
     };
 
-    const removeMainImage = (indexToRemove) => {
-        setImages(prev => prev.filter((_, index) => index !== indexToRemove));
-        setImagePreviews(prev => {
-            URL.revokeObjectURL(prev[indexToRemove]);
-            return prev.filter((_, index) => index !== indexToRemove);
-        });
+    const removeNewImage = (index) => {
+        URL.revokeObjectURL(newImagePreviews[index]);
+        setNewImages(prev => prev.filter((_, i) => i !== index));
+        setNewImagePreviews(prev => prev.filter((_, i) => i !== index));
     };
 
+    const removeExistingImage = (index) => {
+        const imageToRemove = existingImages[index];
+        setDeletedCloudinaryIds(prev => [...prev, imageToRemove.cloudinary_id]);
+        setExistingImages(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Các hàm xử lý biến thể
     const handleVariantChange = (index, event) => {
         const values = [...variants];
         values[index][event.target.name] = event.target.value;
@@ -75,88 +97,86 @@ const AddProductPage = () => {
         const file = event.target.files[0];
         if (file) {
             const newVariants = [...variants];
-            if (newVariants[index].imagePreview) {
+            // Xóa ảnh xem trước cũ nếu có
+            if (newVariants[index].imagePreview && !newVariants[index].image?.url) {
                 URL.revokeObjectURL(newVariants[index].imagePreview);
             }
-            newVariants[index].image = file;
+            newVariants[index].newImage = file; // Lưu file mới vào một trường tạm
             newVariants[index].imagePreview = URL.createObjectURL(file);
             setVariants(newVariants);
         }
     };
 
     const addVariant = () => {
-        setVariants([...variants, { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, imagePreview: '' }]);
+        setVariants([...variants, { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, newImage: null, imagePreview: '' }]);
     };
 
     const removeVariant = (index) => {
         const variantToRemove = variants[index];
-        if (variantToRemove.imagePreview) {
+        if (variantToRemove.image?.cloudinary_id) {
+            setDeletedCloudinaryIds(prev => [...prev, variantToRemove.image.cloudinary_id]);
+        }
+        if (variantToRemove.imagePreview && !variantToRemove.image?.url) {
             URL.revokeObjectURL(variantToRemove.imagePreview);
         }
         setVariants(variants.filter((_, i) => i !== index));
     };
 
-
-    // --- HÀM SUBMIT CHÍNH ĐỂ GỌI API ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
 
         const formData = new FormData();
-
-        // 1. Thêm các trường dữ liệu cơ bản
         formData.append('name', name);
         formData.append('description', description);
         formData.append('brand', brand);
         formData.append('category', category);
+        formData.append('deleted_cloudinary_ids', deletedCloudinaryIds.join(','));
 
-        // 2. Chuẩn bị mảng variants và thêm ảnh biến thể vào FormData
+        // Xử lý ảnh chính mới
+        newImages.forEach(file => {
+            formData.append('new_main_images', file);
+        });
+
+        // Xử lý biến thể
         const variantsPayload = variants.map((variant, index) => {
             const variantData = {
+                _id: variant._id,
                 color: variant.color,
                 performance: variant.performance,
                 costPrice: variant.costPrice,
                 sellingPrice: variant.sellingPrice,
-                sku: variant.sku
+                image: variant.image,
+                sku: variant.sku // ✨ THÊM DÒNG NÀY VÀO ✨
             };
-            if (variant.image) {
-                // Đặt một định danh duy nhất cho ảnh để backend có thể map
-                const imageIdentifier = `variant_image_${index}`;
-                formData.append(imageIdentifier, variant.image);
+            if (variant.newImage) {
+                const imageIdentifier = `new_variant_image_${index}`;
+                formData.append(imageIdentifier, variant.newImage);
                 variantData.imageIdentifier = imageIdentifier;
             }
             return variantData;
         });
 
-        // Thêm mảng variants dưới dạng chuỗi JSON
         formData.append('variants', JSON.stringify(variantsPayload));
-
-        // 3. Thêm các ảnh chính
-        images.forEach(file => {
-            formData.append('images', file); // 'images' phải khớp với backend
-        });
 
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
-            const config = {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'multipart/form-data'
-                }
-            };
+            const config = { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
 
-            await axios.post('/api/v1/products', formData, config);
+            await axios.put(`/api/v1/products/${id}`, formData, config);
 
-            setSuccess('Thêm sản phẩm thành công! Đang chuyển hướng...');
+            setSuccess('Cập nhật sản phẩm thành công! Đang chuyển hướng...');
             setTimeout(() => navigate('/admin/products'), 2000);
         } catch (err) {
-            setError(err.response?.data?.msg || 'Thêm sản phẩm thất bại.');
+            setError(err.response?.data?.msg || 'Cập nhật sản phẩm thất bại.');
         } finally {
             setLoading(false);
         }
     };
+
+    if (fetchLoading) return <div className="text-center p-5"><Spinner /></div>;
 
     return (
         <div className="p-4">
@@ -164,10 +184,9 @@ const AddProductPage = () => {
                 {error && <Alert variant="danger">{error}</Alert>}
                 {success && <Alert variant="success">{success}</Alert>}
                 <Row>
-                    {/* --- CỘT TRÁI: THÔNG TIN CƠ BẢN & ẢNH --- */}
                     <Col lg={8}>
-                        {/* ... Card thông tin cơ bản ... */}
                         <Card className="card-custom mb-4">
+                            <Card.Header><Card.Title as="h5">Thông tin cơ bản</Card.Title></Card.Header>
                             <Card.Body>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Tên sản phẩm</Form.Label>
@@ -180,19 +199,25 @@ const AddProductPage = () => {
                             </Card.Body>
                         </Card>
 
-                        {/* ... Card hình ảnh ... */}
                         <Card className="card-custom mb-4">
-                            <Card.Header><Card.Title as="h5"><FaImage /> Hình ảnh chính</Card.Title></Card.Header>
+                            <Card.Header><Card.Title as="h5"><FaImage /> Hình ảnh sản phẩm</Card.Title></Card.Header>
                             <Card.Body>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Tải ảnh lên (chọn nhiều ảnh)</Form.Label>
-                                    <Form.Control type="file" accept="image/*" multiple onChange={handleMainImagesChange} />
+                                    <Form.Label>Tải ảnh mới</Form.Label>
+                                    <Form.Control type="file" accept="image/*" multiple onChange={handleNewImagesChange} />
                                 </Form.Group>
+                                <p className="text-muted">Ảnh hiện tại:</p>
                                 <div className="main-images-preview-container">
-                                    {imagePreviews.map((preview, index) => (
+                                    {existingImages.map((img, index) => (
+                                        <div key={img.cloudinary_id} className="main-image-preview-item">
+                                            <Image src={img.url} thumbnail />
+                                            <Button variant="danger" size="sm" onClick={() => removeExistingImage(index)}><FaTrash /></Button>
+                                        </div>
+                                    ))}
+                                    {newImagePreviews.map((preview, index) => (
                                         <div key={index} className="main-image-preview-item">
                                             <Image src={preview} thumbnail />
-                                            <Button variant="danger" size="sm" onClick={() => removeMainImage(index)}><FaTrash /></Button>
+                                            <Button variant="danger" size="sm" onClick={() => removeNewImage(index)}><FaTrash /></Button>
                                         </div>
                                     ))}
                                 </div>
@@ -200,7 +225,6 @@ const AddProductPage = () => {
                         </Card>
                     </Col>
 
-                    {/* --- CỘT PHẢI: PHÂN LOẠI --- */}
                     <Col lg={4}>
                         <Card className="card-custom mb-4">
                             <Card.Header><Card.Title as="h5"><FaTags /> Phân loại</Card.Title></Card.Header>
@@ -208,14 +232,14 @@ const AddProductPage = () => {
                                 <Form.Group className="mb-3">
                                     <Form.Label>Danh mục</Form.Label>
                                     <Form.Select required value={category} onChange={(e) => setCategory(e.target.value)}>
-                                        <option value="">-- Chọn danh mục --</option>
+                                        <option value="">-- Chọn --</option>
                                         {allCategories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
                                     </Form.Select>
                                 </Form.Group>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Thương hiệu</Form.Label>
                                     <Form.Select required value={brand} onChange={(e) => setBrand(e.target.value)}>
-                                        <option value="">-- Chọn thương hiệu --</option>
+                                        <option value="">-- Chọn --</option>
                                         {allBrands.map(brd => <option key={brd._id} value={brd._id}>{brd.name}</option>)}
                                     </Form.Select>
                                 </Form.Group>
@@ -224,23 +248,21 @@ const AddProductPage = () => {
                     </Col>
                 </Row>
 
-                {/* --- KHU VỰC BIẾN THỂ (VARIANTS) --- */}
                 <Card className="card-custom mb-4">
                     <Card.Header><Card.Title as="h5"><FaBoxes /> Các biến thể</Card.Title></Card.Header>
                     <Card.Body>
                         {variants.map((variant, index) => (
-                            <Card key={index} className="variant-item mb-3">
+                            <Card key={variant._id || index} className="variant-item mb-3">
                                 <Card.Body>
                                     <Row>
                                         <Col md={2}>
                                             <Form.Group>
-                                                <Form.Label>Ảnh biến thể</Form.Label>
-                                                {variant.imagePreview ? <Image src={variant.imagePreview} thumbnail /> : <div className="variant-image-placeholder"><FaImage /></div>}
+                                                <Form.Label>Ảnh</Form.Label>
+                                                <Image src={variant.imagePreview || 'https://via.placeholder.com/150'} thumbnail />
                                                 <Form.Control type="file" size="sm" className="mt-2" onChange={e => handleVariantImageChange(index, e)} />
                                             </Form.Group>
                                         </Col>
                                         <Col md={10}>
-
                                             <Row>
                                                 <Col md={6}>
                                                     <Form.Group>
@@ -269,11 +291,10 @@ const AddProductPage = () => {
                     </Card.Body>
                 </Card>
 
-                {/* --- NÚT SUBMIT --- */}
                 <div className="d-flex justify-content-end">
                     <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/products')}>Hủy</Button>
                     <Button variant="primary" type="submit" disabled={loading}>
-                        {loading ? <><Spinner size="sm" /> Đang lưu...</> : 'Lưu sản phẩm'}
+                        {loading ? <><Spinner size="sm" /> Đang lưu...</> : 'Lưu thay đổi'}
                     </Button>
                 </div>
             </Form>
@@ -281,4 +302,4 @@ const AddProductPage = () => {
     );
 };
 
-export default AddProductPage;
+export default EditProductPage;
