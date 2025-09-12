@@ -80,7 +80,8 @@ const Sidebar = ({ isCollapsed, setCollapsed }) => {
 
   // Chuẩn bị dữ liệu để hiển thị
   const adminName = user ? user.fullName : 'Admin';
-  const adminAvatar = user && user.avatar ? user.avatar.url : userAvatar;
+  // DÒNG ĐÃ SỬA: Thay thế 'userAvatar' bằng một URL ảnh mặc định
+  const adminAvatar = user && user.avatar ? user.avatar.url : 'https://via.placeholder.com/150';
   const adminRole = user ? user.role : 'Administrator';
 
   return (
