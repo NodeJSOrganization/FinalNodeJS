@@ -1,43 +1,55 @@
-// src/pages/admin/AddPromotionPage/index.jsx
+// --- START OF FILE src/pages/admin/AddPromotionPage/index.jsx ---
 
-import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Row, Col, InputGroup, Alert, Spinner } from 'react-bootstrap';
+import React, { useState, useEffect, forwardRef } from 'react';
+import { Form, Button, Card, Row, Col, Alert, Spinner, InputGroup } from 'react-bootstrap';
 import Select from 'react-select';
-import { FaBullhorn, FaPercent, FaCalendarAlt, FaInfoCircle } from 'react-icons/fa';
+import { FaBullhorn, FaInfoCircle, FaCalendarAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Import axios trực tiếp
+import axios from 'axios';
+import DatePicker from 'react-datepicker';
+
+const CustomDateInput = forwardRef(({ value, onClick, placeholder }, ref) => (
+    <InputGroup onClick={onClick} ref={ref}>
+        <Form.Control
+            value={value}
+            placeholder={placeholder}
+            readOnly // Ngăn người dùng gõ tay, chỉ cho phép chọn từ lịch
+        />
+        <InputGroup.Text>
+            <FaCalendarAlt />
+        </InputGroup.Text>
+    </InputGroup>
+));
 
 const AddPromotionPage = () => {
     const navigate = useNavigate();
 
     // State cho các trường của form
     const [name, setName] = useState('');
+    // ✨ ĐÃ SỬA LỖI CÚ PHÁP TẠI ĐÂY (dấu _ thành dấu =) ✨
     const [appliedProducts, setAppliedProducts] = useState([]);
     const [type, setType] = useState('percent');
     const [value, setValue] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [status, setStatus] = useState('active');
 
-    // State để lưu danh sách sản phẩm từ API
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
+
     const [productOptions, setProductOptions] = useState([]);
-
-    // State để quản lý trạng thái của component
     const [loadingProducts, setLoadingProducts] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState(''); // Lỗi khi submit form
-    const [success, setSuccess] = useState(''); // Thành công khi submit form
-    const [fetchError, setFetchError] = useState(''); // Lỗi khi lấy sản phẩm
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [fetchError, setFetchError] = useState('');
 
-    // Hook useEffect để lấy danh sách sản phẩm khi component được render lần đầu
     useEffect(() => {
         const fetchProducts = async () => {
             try {
                 setFetchError('');
                 setLoadingProducts(true);
-                // API không yêu cầu token nên có thể gọi trực tiếp
                 const response = await axios.get('/api/v1/products');
                 const options = response.data.data.map(product => ({
-                    value: product._id, // Sử dụng _id từ MongoDB
+                    value: product._id,
                     label: product.name
                 }));
                 setProductOptions(options);
@@ -48,48 +60,49 @@ const AddPromotionPage = () => {
                 setLoadingProducts(false);
             }
         };
-
         fetchProducts();
-    }, []); // Mảng rỗng đảm bảo effect chỉ chạy 1 lần
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
 
-        // Chuẩn bị dữ liệu JSON để gửi đi (không cần FormData vì không có file)
+        if (!startDate || !endDate) {
+            return setError('Vui lòng chọn ngày bắt đầu và ngày kết thúc.');
+        }
+        if (appliedProducts.length === 0) {
+            return setError('Vui lòng chọn ít nhất một sản phẩm.');
+        }
+        if (endDate < startDate) {
+            return setError('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.');
+        }
+
         const promotionData = {
             name,
             appliedProducts: appliedProducts.map(p => p.value),
             type,
             value: Number(value),
-            startDate,
-            endDate,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            status,
         };
 
         try {
             setIsSubmitting(true);
-            const token = localStorage.getItem('token'); // Lấy token từ localStorage
-
-            // Cấu hình headers cho request, bao gồm token
+            const token = localStorage.getItem('token');
             const config = {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             };
-
-            // Gọi API POST để tạo khuyến mãi
             await axios.post('/api/v1/promotions', promotionData, config);
-
             setSuccess('Tạo chương trình khuyến mãi thành công! Đang chuyển hướng...');
-            setTimeout(() => navigate('/admin/promotions'), 2000); // Chuyển hướng sau 2 giây
-
+            setTimeout(() => navigate('/admin/promotions'), 2000);
         } catch (err) {
-            // Lấy thông báo lỗi từ response của backend nếu có, nếu không thì báo lỗi chung
             const message = err.response?.data?.msg || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
             setError(message);
-            console.error(err);
         } finally {
             setIsSubmitting(false);
         }
@@ -105,7 +118,6 @@ const AddPromotionPage = () => {
                                 <Card.Title as="h4"><FaBullhorn className="me-2" />Tạo Chương trình khuyến mãi mới</Card.Title>
                             </Card.Header>
                             <Card.Body>
-                                {/* Hiển thị thông báo lỗi và thành công */}
                                 {error && <Alert variant="danger">{error}</Alert>}
                                 {success && <Alert variant="success">{success}</Alert>}
 
@@ -117,27 +129,19 @@ const AddPromotionPage = () => {
                                 <Form.Group className="mb-3" controlId="selectProducts">
                                     <Form.Label>Áp dụng cho sản phẩm</Form.Label>
                                     {loadingProducts ? (
-                                        <div className="text-center p-3">
-                                            <Spinner animation="border" /> <p className="mt-2 mb-0">Đang tải sản phẩm...</p>
-                                        </div>
+                                        <div className="text-center p-3"><Spinner animation="border" /></div>
                                     ) : fetchError ? (
                                         <Alert variant="danger">{fetchError}</Alert>
                                     ) : (
                                         <Select
                                             isMulti
                                             options={productOptions}
-                                            className="basic-multi-select"
-                                            classNamePrefix="select"
                                             placeholder="Tìm và chọn sản phẩm..."
                                             value={appliedProducts}
                                             onChange={setAppliedProducts}
-                                            required
                                             noOptionsMessage={() => "Không tìm thấy sản phẩm"}
                                         />
                                     )}
-                                    <Form.Text className="text-muted">
-                                        Chọn một hoặc nhiều sản phẩm để áp dụng khuyến mãi này.
-                                    </Form.Text>
                                 </Form.Group>
 
                                 <Row>
@@ -153,10 +157,7 @@ const AddPromotionPage = () => {
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="promoValue">
                                             <Form.Label>Giá trị</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control type="number" placeholder={type === 'percent' ? "VD: 15" : "VD: 100000"} required value={value} onChange={(e) => setValue(e.target.value)} />
-                                                <InputGroup.Text>{type === 'percent' ? '%' : 'đ'}</InputGroup.Text>
-                                            </InputGroup>
+                                            <Form.Control type="number" placeholder={type === 'percent' ? "VD: 15" : "VD: 100000"} required min="0" value={value} onChange={(e) => setValue(e.target.value)} />
                                         </Form.Group>
                                     </Col>
                                 </Row>
@@ -165,35 +166,55 @@ const AddPromotionPage = () => {
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="startDate">
                                             <Form.Label>Ngày bắt đầu</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                                                <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
-                                            </InputGroup>
+                                            <DatePicker
+                                                selected={startDate}
+                                                onChange={(date) => setStartDate(date)}
+                                                selectsStart
+                                                startDate={startDate}
+                                                endDate={endDate}
+                                                dateFormat="dd/MM/yyyy"
+                                                autoComplete="off"
+                                                required
+                                                customInput={<CustomDateInput placeholder="Chọn ngày bắt đầu" />}
+                                            />
                                         </Form.Group>
                                     </Col>
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="endDate">
                                             <Form.Label>Ngày kết thúc</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                                                <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
-                                            </InputGroup>
+                                            <DatePicker
+                                                selected={endDate}
+                                                onChange={(date) => setEndDate(date)}
+                                                selectsEnd
+                                                startDate={startDate}
+                                                endDate={endDate}
+                                                minDate={startDate}
+                                                dateFormat="dd/MM/yyyy"
+                                                autoComplete="off"
+                                                required
+                                                customInput={<CustomDateInput placeholder="Chọn ngày kết thúc" />}
+                                            />
                                         </Form.Group>
                                     </Col>
                                 </Row>
-
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Trạng thái</Form.Label>
+                                    <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
+                                        <option value="active">Hoạt động</option>
+                                        <option value="inactive">Không hoạt động</option>
+                                    </Form.Select>
+                                </Form.Group>
                             </Card.Body>
                             <Card.Footer className="text-end">
                                 <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/promotions')}>Hủy</Button>
                                 <Button variant="primary" type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? <><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Đang lưu...</> : 'Lưu chương trình'}
+                                    {isSubmitting ? <><Spinner as="span" animation="border" size="sm" /> Đang lưu...</> : 'Lưu chương trình'}
                                 </Button>
                             </Card.Footer>
                         </Card>
                     </Form>
                 </Col>
 
-                {/* CỘT PHẢI: HƯỚNG DẪN / GỢI Ý (giữ nguyên) */}
                 <Col md={4}>
                     <Card className="card-custom">
                         <Card.Header>

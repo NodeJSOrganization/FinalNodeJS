@@ -1,3 +1,5 @@
+// --- START OF FILE models/Promotion.js ---
+
 const mongoose = require('mongoose');
 
 const PromotionSchema = new mongoose.Schema({
@@ -7,7 +9,6 @@ const PromotionSchema = new mongoose.Schema({
         trim: true,
         unique: true
     },
-    // Mảng chứa các ID của sản phẩm được áp dụng
     appliedProducts: [{
         type: mongoose.Schema.ObjectId,
         ref: 'Product',
@@ -16,7 +17,7 @@ const PromotionSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['fixed_amount', 'percent'], // Giảm số tiền cố định hoặc giảm theo %
+        enum: ['fixed_amount', 'percent'],
         default: 'percent'
     },
     value: {
@@ -31,21 +32,30 @@ const PromotionSchema = new mongoose.Schema({
     endDate: {
         type: Date,
         required: [true, 'Vui lòng nhập ngày kết thúc'],
+        // ✨ ĐÃ SỬA LỖI VALIDATOR TẠI ĐÂY ✨
         validate: {
-            validator: function (value) {
-                // Lấy toàn bộ object đang được cập nhật
-                const update = this.getUpdate();
+            validator: function (endDateValue) {
+                let startDateValue;
 
-                // Xác định startDate để so sánh:
-                // 1. Nếu đang cập nhật, lấy từ object update (`update.$set.startDate`).
-                // 2. Nếu đang tạo mới, lấy từ document hiện tại (`this.startDate`).
-                const startDateToCompare = update?.$set?.startDate || this.startDate;
+                // Kiểm tra xem chúng ta đang ở ngữ cảnh "update" hay "create"
+                // Nếu `this.getUpdate` là một hàm, nghĩa là đang update.
+                if (typeof this.getUpdate === 'function') {
+                    const updatePayload = this.getUpdate();
+                    // Lấy startDate từ payload update, nếu không có thì lấy từ document hiện tại (cho trường hợp chỉ update endDate)
+                    startDateValue = updatePayload.$set?.startDate || this.getQuery().startDate;
+                } 
+                // Nếu không, nghĩa là đang tạo mới.
+                else {
+                    startDateValue = this.startDate;
+                }
 
                 // Nếu không có startDate (để validator `required` xử lý), thì bỏ qua
-                if (!startDateToCompare) return true;
+                if (!startDateValue) {
+                    return true;
+                }
 
-                // Thực hiện so sánh chính xác
-                return new Date(value) >= new Date(startDateToCompare);
+                // Thực hiện so sánh
+                return new Date(endDateValue) >= new Date(startDateValue);
             },
             message: 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu'
         }

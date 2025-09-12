@@ -1,65 +1,76 @@
-// src/pages/admin/EditPromotionPage/index.jsx
-import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Row, Col, InputGroup, Alert, Spinner } from 'react-bootstrap';
+import React, { useState, useEffect, forwardRef } from 'react';
+import { Form, Button, Card, Row, Col, Alert, Spinner, InputGroup } from 'react-bootstrap';
 import Select from 'react-select';
-import { FaBullhorn, FaPercent, FaCalendarAlt, FaInfoCircle } from 'react-icons/fa';
+import { FaBullhorn, FaInfoCircle, FaCalendarAlt } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import DatePicker from 'react-datepicker';
+
+const CustomDateInput = forwardRef(({ value, onClick, placeholder }, ref) => (
+    <InputGroup onClick={onClick} ref={ref}>
+        <Form.Control value={value} placeholder={placeholder} readOnly />
+        <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
+    </InputGroup>
+));
+
 
 const EditPromotionPage = () => {
     const navigate = useNavigate();
-    const { id } = useParams(); // Lấy ID từ URL
+    const { id } = useParams();
 
     // State cho các trường của form
     const [name, setName] = useState('');
     const [appliedProducts, setAppliedProducts] = useState([]);
     const [type, setType] = useState('percent');
     const [value, setValue] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [status, setStatus] = useState('active'); // ✨ Thêm state cho trạng thái
+
+    // ✨ State cho DatePicker, sử dụng null làm giá trị ban đầu
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
 
     // State để lưu danh sách sản phẩm từ API
     const [productOptions, setProductOptions] = useState([]);
 
     // State để quản lý trạng thái của component
-    const [loading, setLoading] = useState(true); // Loading cho việc fetch dữ liệu ban đầu
+    const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // Lấy dữ liệu của khuyến mãi cần sửa và danh sách sản phẩm
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const token = localStorage.getItem('token');
                 const config = { headers: { Authorization: `Bearer ${token}` } };
 
-                // Gọi song song 2 API để tăng tốc độ
                 const [promoRes, productsRes] = await Promise.all([
                     axios.get(`/api/v1/promotions/${id}`, config),
-                    axios.get('/api/v1/products', config) // API này không cần token nhưng thêm cho nhất quán
+                    axios.get('/api/v1/products')
                 ]);
 
-                // Xử lý dữ liệu sản phẩm cho react-select
                 const options = productsRes.data.data.map(product => ({
                     value: product._id,
                     label: product.name
                 }));
                 setProductOptions(options);
 
-                // Xử lý dữ liệu khuyến mãi và điền vào form
                 const promoData = promoRes.data.data;
                 setName(promoData.name);
                 setType(promoData.type);
                 setValue(promoData.value);
-                // Format lại ngày tháng cho input type="date" (YYYY-MM-DD)
-                setStartDate(new Date(promoData.startDate).toISOString().split('T')[0]);
-                setEndDate(new Date(promoData.endDate).toISOString().split('T')[0]);
+                setStatus(promoData.status);
+
+                // ✨ Chuyển đổi chuỗi date từ API sang object Date mà DatePicker hiểu
+                setStartDate(new Date(promoData.startDate));
+                setEndDate(new Date(promoData.endDate));
 
                 // Chuyển đổi mảng ID sản phẩm thành định dạng của react-select
-                const selectedProductOptions = options.filter(option =>
-                    promoData.appliedProducts.includes(option.value)
-                );
+                // Cần lọc bỏ các sản phẩm không tìm thấy (giá trị null/undefined)
+                const selectedProductOptions = promoData.appliedProducts
+                    .map(productId => options.find(option => option.value === productId))
+                    .filter(Boolean);
+
                 setAppliedProducts(selectedProductOptions);
 
             } catch (err) {
@@ -70,33 +81,40 @@ const EditPromotionPage = () => {
         };
 
         fetchData();
-    }, [id]); // Effect sẽ chạy lại nếu ID thay đổi
+    }, [id]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
 
+        if (!startDate || !endDate) {
+            return setError('Vui lòng chọn ngày bắt đầu và ngày kết thúc.');
+        }
+        if (appliedProducts.length === 0) {
+            return setError('Vui lòng chọn ít nhất một sản phẩm.');
+        }
+        if (endDate < startDate) {
+            return setError('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.');
+        }
+
         const promotionData = {
             name,
             appliedProducts: appliedProducts.map(p => p.value),
             type,
             value: Number(value),
-            startDate,
-            endDate,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            status, // ✨ Thêm trạng thái vào payload
         };
 
         try {
             setIsSubmitting(true);
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
-
-            // Gọi API PUT để cập nhật
             await axios.put(`/api/v1/promotions/${id}`, promotionData, config);
-
             setSuccess('Cập nhật khuyến mãi thành công! Đang chuyển hướng...');
             setTimeout(() => navigate('/admin/promotions'), 2000);
-
         } catch (err) {
             const message = err.response?.data?.msg || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
             setError(message);
@@ -120,7 +138,6 @@ const EditPromotionPage = () => {
                     <Form onSubmit={handleSubmit}>
                         <Card className="card-custom">
                             <Card.Header>
-                                {/* Thay đổi tiêu đề */}
                                 <Card.Title as="h4"><FaBullhorn className="me-2" />Chỉnh sửa Chương trình khuyến mãi</Card.Title>
                             </Card.Header>
                             <Card.Body>
@@ -137,12 +154,9 @@ const EditPromotionPage = () => {
                                     <Select
                                         isMulti
                                         options={productOptions}
-                                        className="basic-multi-select"
-                                        classNamePrefix="select"
                                         placeholder="Tìm và chọn sản phẩm..."
                                         value={appliedProducts}
                                         onChange={setAppliedProducts}
-                                        required
                                         noOptionsMessage={() => "Không tìm thấy sản phẩm"}
                                     />
                                 </Form.Group>
@@ -160,10 +174,7 @@ const EditPromotionPage = () => {
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="promoValue">
                                             <Form.Label>Giá trị</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control type="number" required value={value} onChange={(e) => setValue(e.target.value)} />
-                                                <InputGroup.Text>{type === 'percent' ? '%' : 'đ'}</InputGroup.Text>
-                                            </InputGroup>
+                                            <Form.Control type="number" required min="0" value={value} onChange={(e) => setValue(e.target.value)} />
                                         </Form.Group>
                                     </Col>
                                 </Row>
@@ -172,22 +183,53 @@ const EditPromotionPage = () => {
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="startDate">
                                             <Form.Label>Ngày bắt đầu</Form.Label>
-                                            <Form.Control type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                                            {/* ✨ SỬ DỤNG COMPONENT DATEPICKER THAY THẾ */}
+                                            <DatePicker
+                                                selected={startDate}
+                                                onChange={(date) => setStartDate(date)}
+                                                selectsStart
+                                                startDate={startDate}
+                                                endDate={endDate}
+                                                dateFormat="dd/MM/yyyy"
+                                                autoComplete="off"
+                                                required
+                                                customInput={<CustomDateInput placeholder="Chọn ngày bắt đầu" />}
+                                            />
                                         </Form.Group>
                                     </Col>
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="endDate">
                                             <Form.Label>Ngày kết thúc</Form.Label>
-                                            <Form.Control type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                                            {/* ✨ SỬ DỤNG COMPONENT DATEPICKER THAY THẾ */}
+                                            <DatePicker
+                                                selected={endDate}
+                                                onChange={(date) => setEndDate(date)}
+                                                selectsEnd
+                                                startDate={startDate}
+                                                endDate={endDate}
+                                                minDate={startDate}
+                                                dateFormat="dd/MM/yyyy"
+                                                autoComplete="off"
+                                                required
+                                                customInput={<CustomDateInput placeholder="Chọn ngày kết thúc" />}
+                                            />
                                         </Form.Group>
                                     </Col>
                                 </Row>
+
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Trạng thái</Form.Label>
+                                    <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
+                                        <option value="active">Hoạt động</option>
+                                        <option value="inactive">Không hoạt động</option>
+                                    </Form.Select>
+                                </Form.Group>
 
                             </Card.Body>
                             <Card.Footer className="text-end">
                                 <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/promotions')}>Hủy</Button>
                                 <Button variant="primary" type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? <><Spinner as="span" animation="border" size="sm" /> Đang cập nhật...</> : 'Lưu thay đổi'}
+                                    {isSubmitting ? <><Spinner as="span" size="sm" /> Đang cập nhật...</> : 'Lưu thay đổi'}
                                 </Button>
                             </Card.Footer>
                         </Card>
@@ -202,8 +244,7 @@ const EditPromotionPage = () => {
                         <Card.Body>
                             <Alert variant="info">
                                 <ul className="mb-0 ps-3">
-                                    <li>Chọn các sản phẩm cụ thể từ danh sách để áp dụng khuyến mãi.</li>
-                                    <li>Giá của các sản phẩm được chọn sẽ được tự động giảm khi chương trình có hiệu lực.</li>
+                                    <li>Bạn có thể thay đổi danh sách sản phẩm được áp dụng khuyến mãi.</li>
                                     <li>Chương trình sẽ tự động kích hoạt vào <strong>00:00</strong> ngày bắt đầu và kết thúc vào <strong>23:59</strong> ngày kết thúc.</li>
                                 </ul>
                             </Alert>
