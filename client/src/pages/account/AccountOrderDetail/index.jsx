@@ -50,16 +50,19 @@ export default function AccountOrderDetail({
 }) {
   if (!order) return null;
   return (
-    <Modal show={show} onHide={onHide} size="xl" centered scrollable>
+    // Bỏ "scrollable" để tránh scroll tổng ở modal
+    <Modal show={show} onHide={onHide} size="xl" centered>
       <Modal.Header closeButton>
         <Modal.Title>
           Chi tiết đơn hàng{" "}
           <span className="text-primary">{order.orderId}</span>
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+
+      {/* Ẩn scroll của Modal.Body để chỉ cột phải có scroll */}
+      <Modal.Body style={{ overflowY: "hidden" }}>
         <Row className="g-4">
-          {/* Cột thông tin đơn */}
+          {/* Cột thông tin đơn - KHÔNG SCROLL */}
           <Col lg={5}>
             <div className="mb-3">
               <div className="fw-semibold mb-2">Thông tin đơn hàng</div>
@@ -134,9 +137,19 @@ export default function AccountOrderDetail({
             </div>
           </Col>
 
-          {/* Cột danh sách sản phẩm chi tiết */}
-          <Col lg={7}>
+          {/* Cột danh sách sản phẩm chi tiết - CÓ SCROLL */}
+          {/* Giới hạn chiều cao theo viewport và bật overflow */}
+          <Col
+            lg={7}
+            style={{
+              maxHeight: "70vh", // có thể chỉnh 60-75vh tùy UI
+              overflowY: "auto",
+              overflowX: "hidden",
+              paddingRight: "0.25rem", // chừa khoảng cho thanh scroll
+            }}
+          >
             <div className="fw-semibold mb-2">Sản phẩm trong đơn</div>
+
             <ListGroup variant="flush">
               {order.items.map((it) => {
                 const finalPrice = priceAfterDiscount(it);
