@@ -10,6 +10,11 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "config": {
+    "mongodbMemoryServer": {
+      "version": "10.2.0"
+    }
+  },
   "dependencies": {
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -17,4 +22,5 @@
     "express": "^5.1.0",
     "morgan": "^1.10.1"
   }
+  
 }

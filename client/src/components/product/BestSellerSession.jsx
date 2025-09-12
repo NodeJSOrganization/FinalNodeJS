@@ -19,7 +19,8 @@ const BestSeller = ({ bestSellers }) => {
     <div
       className="mb-2 position-relative"
       style={{
-        background: "linear-gradient(135deg, #f09819, #ff512f)",
+        // background: "linear-gradient(135deg, #f09819, #ff512f)",
+        background: "linear-gradient(135deg, #4facfe, #00f2fe)",
         borderRadius: "12px",
         padding: "16px",
         color: "#fff",

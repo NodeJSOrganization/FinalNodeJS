@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ProductSampleData } from "../../data/ProductSampleData";
 import { FaShoppingCart, FaStar } from "react-icons/fa";
 import { Card, Carousel } from "react-bootstrap";
@@ -8,6 +8,7 @@ const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(0);
+  const navigate = useNavigate();
   const [comments, setComments] = useState([
     { id: 1, user: "User1", rating: 4, comment: "Sản phẩm tốt, đáng mua!" },
     { id: 2, user: "User2", rating: 5, comment: "Chất lượng tuyệt vời!" },
@@ -93,7 +94,7 @@ const ProductDetail = () => {
           </p>
           <p>{product.description}</p>
           <button className="btn btn-primary mt-3">
-            <FaShoppingCart /> Thêm vào giỏ
+            <FaShoppingCart onClick={navigate("/cart")} /> Thêm vào giỏ
           </button>
         </div>
       </div>
