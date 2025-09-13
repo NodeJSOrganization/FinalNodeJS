@@ -131,6 +131,7 @@ const ProductReviews = ({ reviews, productName, onAddReview }) => {
           </div>
         </Card.Header>
         <Card.Body>
+          {/* Form Viết Đánh Giá */}
           <div className="border-bottom pb-4 mb-4">
             <h5 className="mb-3">
               Chia sẻ trải nghiệm của bạn về sản phẩm này

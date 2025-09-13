@@ -6,7 +6,9 @@ import { Container, Row, Col, Button, Card, Carousel } from "react-bootstrap";
 import { setCartItems } from "../../../features/cart/cartReducer";
 import { useDispatch, useSelector } from "react-redux";
 import ProductReviews from "../../components/product/ProductReviews";
+import RelatedProducts from "../../components/product/RelatedProduct";
 
+// CSS Styles cho component
 const VariantStyles = () => (
   <style>{`
     .option-group-label { font-weight: bold; margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.9rem; color: #555; }
@@ -50,6 +52,10 @@ const ProductDetail = () => {
     },
   ]);
 
+  const allProducts = useSelector((state) =>
+    Object.values(state.product.products).flat()
+  );
+
   useEffect(() => {
     const allProducts = Object.values(ProductSampleData).flat();
     const foundProduct = allProducts.find((p) => p.id === id);
@@ -76,6 +82,14 @@ const ProductDetail = () => {
       performance: Array.from(options.performance),
     };
   }, [product]);
+
+  const relatedProducts = useMemo(() => {
+    if (!product || allProducts.length === 0) return [];
+
+    return allProducts.filter(
+      (p) => p.brand === product.brand && p.id !== product.id
+    );
+  }, [product, allProducts]);
 
   const handleOptionSelect = (optionKey, value) => {
     const newVariant = product.variants.find(
@@ -286,6 +300,9 @@ const ProductDetail = () => {
             </div>
           </Col>
         </Row>
+
+        <RelatedProducts products={relatedProducts} />
+
         <ProductReviews
           reviews={comments}
           productName={product.name}
