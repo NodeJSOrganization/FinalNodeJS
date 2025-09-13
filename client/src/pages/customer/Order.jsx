@@ -84,7 +84,7 @@ export default function OrderPage() {
 
   const [userPoints] = useState(458);
   const selectedSubtotal = useMemo(
-    () => selectedCartItems.reduce((s, it) => s + it.price * it.qty, 0),
+    () => selectedCartItems.reduce((s, it) => s + it.price * it.quantity, 0),
     [selectedCartItems]
   );
   const voucherDiscount = useMemo(() => {
@@ -249,7 +249,7 @@ export default function OrderPage() {
               >
                 {selectedCartItems.map((item) => (
                   <ListGroup.Item
-                    key={item.id}
+                    key={item.variantId}
                     className="d-flex align-items-center"
                   >
                     <Image
@@ -264,11 +264,14 @@ export default function OrderPage() {
                     <div className="ms-3 flex-grow-1">
                       <div className="fw-semibold">{item.name}</div>
                       <div className="text-muted small">
-                        Số lượng: {item.qty}
+                        Phân loại: {item.variantName}
+                      </div>
+                      <div className="text-muted small">
+                        Số lượng: {item.quantity}
                       </div>
                     </div>
                     <div className="fw-semibold">
-                      {currency(item.price * item.qty)}
+                      {currency(item.price * item.quantity)}
                     </div>
                   </ListGroup.Item>
                 ))}

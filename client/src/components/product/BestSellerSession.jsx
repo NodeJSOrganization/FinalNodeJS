@@ -73,7 +73,7 @@ const BestSeller = ({ bestSellers }) => {
 
               <h6 style={{ fontWeight: "bold" }}>{p.name}</h6>
               <p style={{ color: "green", fontWeight: "bold" }}>
-                {p.variants[0].price}₫
+                {p.variants[0].sellingPrice}₫
               </p>
             </div>
           </Link>
