@@ -1,5 +1,5 @@
 import AdminLayout from '../layouts/AdminLayout';
-
+import AdminRoute from '../components/routing/AdminRoute';
 // Import tất cả các trang của admin
 import DashboardPage from '../pages/admin/DashboardPage';
 import ProductManagementPage from '../pages/admin/ProductManagementPage';
@@ -27,14 +27,19 @@ const Placeholder = ({ title }) => <h2>{title}</h2>;
 const adminRoutes = [
   {
     path: '/admin',
-    element: <AdminLayout />, // Tất cả route con sẽ dùng chung layout này
+    // --- START: SỬA LẠI DÒNG NÀY ---
+    element: (
+      <AdminRoute>
+        <AdminLayout />
+      </AdminRoute>
+    ), // Tất cả route con sẽ dùng chung layout này
     children: [
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'products', element: <ProductManagementPage /> },
       { path: 'products/add', element: <AddProductPage /> },
       { path: 'users', element: <UserManagementPage /> },
       { path: 'users/add', element: <AddUserPage /> },
-      { path: 'users/edit/:id', element: <EditUserPage /> }, 
+      { path: 'users/edit/:id', element: <EditUserPage /> },
       { path: 'orders', element: <OrderManagementPage /> },
       { path: 'discounts', element: <DiscountManagementPage /> },
       { path: 'discounts/add', element: <AddDiscountPage /> },
