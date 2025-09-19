@@ -125,7 +125,7 @@ const Footer = () => {
             <span className="muted"> • </span>
             <strong>Lê Công Tuấn</strong>
             <span className="muted"> • </span>
-            <strong>Võ Thanh Ngân</strong>
+            <strong>Võ Thị Thanh Ngân</strong>
           </Col>
         </Row>
       </Container>

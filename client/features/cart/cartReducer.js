@@ -1,8 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { DEMO_CART_ITEMS } from "../../src/data/DemoCartItems";
 
 const initialState = {
-  cartItems: DEMO_CART_ITEMS,
+  cartItems: [],
   selectedVoucher: null,
   usePoints: false,
 };
@@ -14,36 +13,41 @@ const cartSlice = createSlice({
     setCartItems: (state, action) => {
       state.cartItems = action.payload;
     },
+
     toggleAllItems: (state, action) => {
       const checked = action.payload;
-      state.cartItems = state.cartItems.map((item) => ({
-        ...item,
-        checked,
-      }));
+      state.cartItems = state.cartItems.map((item) => ({ ...item, checked }));
     },
+
     toggleItem: (state, action) => {
-      const { id, checked } = action.payload;
-      state.cartItems = state.cartItems.map((item) =>
-        item.id === id ? { ...item, checked } : item
-      );
+      const { variantId, checked } = action.payload;
+      const item = state.cartItems.find((x) => x.variantId === variantId);
+      if (item) {
+        item.checked = checked;
+      }
     },
+
     changeQty: (state, action) => {
-      const { id, delta } = action.payload;
-      state.cartItems = state.cartItems.map((item) =>
-        item.id === id ? { ...item, qty: Math.max(1, item.qty + delta) } : item
+      const { variantId, delta } = action.payload;
+      const item = state.cartItems.find((x) => x.variantId === variantId);
+      if (item) {
+        item.quantity = Math.max(1, item.quantity + delta);
+      }
+    },
+
+    removeItem: (state, action) => {
+      const variantId = action.payload;
+      state.cartItems = state.cartItems.filter(
+        (x) => x.variantId !== variantId
       );
     },
-    removeItem: (state, action) => {
-      const id = action.payload;
-      state.cartItems = state.cartItems.filter((item) => item.id !== id);
-    },
+
     removeSelected: (state) => {
       state.cartItems = state.cartItems.filter((item) => !item.checked);
     },
-    // Action để xóa các sản phẩm đã chọn sau khi đặt hàng thành công
+
     clearSelectedItems: (state) => {
       state.cartItems = state.cartItems.filter((item) => !item.checked);
-      // Reset luôn voucher và điểm thưởng
       state.selectedVoucher = null;
       state.usePoints = false;
     },
@@ -54,7 +58,7 @@ const cartSlice = createSlice({
       state.selectedVoucher = null;
     },
     toggleUsePoints: (state, action) => {
-      state.usePoints = action.payload; // Nhận giá trị true/false trực tiếp
+      state.usePoints = action.payload;
     },
   },
 });

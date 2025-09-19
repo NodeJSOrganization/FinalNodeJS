@@ -42,8 +42,6 @@ const Home = () => {
   const allProducts = useSelector((state) => state.product.products);
   const bestSellers = allProducts.slice(2, 8);
 
-  console.log("allProducts", allProducts);
-
   const currentTime = new Date("2025-09-06T13:31:00+07:00").getTime();
   const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
 
@@ -298,70 +296,7 @@ const Home = () => {
         <Tab eventKey="monitors" title="Monitors"></Tab>
         <Tab eventKey="hard-drives" title="Hard Drives"></Tab>
       </Tabs>
-      {/* Phần điều khiển sắp xếp và lọc
-      <div className="d-flex align-items-center justify-content-center gap-2 mb-4">
-        <Form.Select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          style={{ borderRadius: "10px", padding: "8px", width: "200px" }}
-        >
-          <option value="default">Sắp xếp theo</option>
-          <option value="name-asc">Tên (A-Z)</option>
-          <option value="name-desc">Tên (Z-A)</option>
-          <option value="price-asc">Giá (tăng dần)</option>
-          <option value="price-desc">Giá (giảm dần)</option>
-        </Form.Select>
 
-        <Form.Select
-          value={selectedBrand}
-          onChange={(e) => setSelectedBrand(e.target.value)}
-          style={{ borderRadius: "10px", padding: "8px", width: "200px" }}
-        >
-          <option value="">Tất cả thương hiệu</option>
-          {uniqueBrands.map((brand) => (
-            <option key={brand} value={brand}>
-              {brand}
-            </option>
-          ))}
-        </Form.Select>
-
-        <Form.Control
-          type="text"
-          placeholder="Tìm kiếm sản phẩm..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ borderRadius: "10px", padding: "8px", width: "200px" }}
-        />
-
-        <div>
-          <div className="d-flex gap-2">
-            <Form.Control
-              type="number"
-              placeholder="Tối thiểu"
-              value={priceRange.min}
-              onChange={(e) =>
-                setPriceRange({
-                  ...priceRange,
-                  min: parseInt(e.target.value) || 0,
-                })
-              }
-              style={{ borderRadius: "10px", padding: "8px", width: "100px" }}
-            />
-            <Form.Control
-              type="number"
-              placeholder="Tối đa"
-              value={priceRange.max === Infinity ? "" : priceRange.max}
-              onChange={(e) =>
-                setPriceRange({
-                  ...priceRange,
-                  max: parseInt(e.target.value) || Infinity,
-                })
-              }
-              style={{ borderRadius: "10px", padding: "8px", width: "100px" }}
-            />
-          </div>
-        </div>
-      </div> */}
       <section className="mb-5">
         <h2 className="text-center text-primary mb-4">
           {activeTab === "all"
