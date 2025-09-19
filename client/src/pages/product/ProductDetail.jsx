@@ -33,6 +33,9 @@ const ProductDetail = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { cartItems } = useSelector((state) => state.cart);
+  const allProducts = useSelector((state) =>
+    Object.values(state.product.products).flat()
+  );
 
   const [product, setProduct] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState({});
@@ -51,10 +54,6 @@ const ProductDetail = () => {
       comment: "Thiết kế đẹp, mỏng nhẹ, đáng tiền.",
     },
   ]);
-
-  const allProducts = useSelector((state) =>
-    Object.values(state.product.products).flat()
-  );
 
   useEffect(() => {
     const allProducts = Object.values(ProductSampleData).flat();
@@ -122,6 +121,7 @@ const ProductDetail = () => {
 
   const handleAddVariantToCart = () => {
     if (!currentVariant) return;
+
     const cartItemToAdd = {
       productId: product.id,
       variantId: currentVariant.id,
@@ -132,9 +132,12 @@ const ProductDetail = () => {
       quantity: 1,
       checked: false,
     };
+
     const existingItem = cartItems.find(
       (item) => item.variantId === cartItemToAdd.variantId
     );
+
+    console.log("existingItem", existingItem);
     const updatedCartItems = existingItem
       ? cartItems.map((item) =>
           item.variantId === existingItem.variantId
