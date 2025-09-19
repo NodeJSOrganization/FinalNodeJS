@@ -19,17 +19,9 @@ const AdminRoute = ({ children }) => {
     );
   }
 
-  // 2. Nếu đã kiểm tra xong, có thông tin user VÀ user đó là admin
   if (user && user.role === 'admin') {
-    // Cho phép truy cập vào trang admin mà họ yêu cầu (children)
     return children;
   }
-
-  // 3. Nếu không phải admin (chưa đăng nhập hoặc role là customer)
-  //    Chuyển hướng họ về trang login.
-  //    `state={{ from: location }}` là để sau khi đăng nhập thành công,
-  //    có thể chuyển hướng họ trở lại trang admin họ đang cố vào.
-  //    `replace` để không lưu trang admin vào lịch sử trình duyệt.
   return <Navigate to="/login" state={{ from: location }} replace />;
 };
 
