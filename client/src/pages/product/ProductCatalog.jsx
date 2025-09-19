@@ -18,9 +18,9 @@ import ProductItem from "../../components/product/ProductItem";
 
 const filters = [
   { key: "all", label: "Tất cả sản phẩm" },
-  { key: "laptops", label: "Laptops" },
-  { key: "monitors", label: "Monitors" },
-  { key: "hard-drives", label: "Hard Drives" },
+  { key: "laptops", label: "Laptop" },
+  { key: "monitors", label: "Màn hình" },
+  { key: "hard-drives", label: "Ổ cứng" },
 ];
 
 const ProductCatalog = () => {
@@ -58,17 +58,21 @@ const ProductCatalog = () => {
     setCurrentPage(1);
   }, [activeFilter, sortBy, searchTerm, selectedBrand, priceRange]);
 
-  const parsePrice = (priceStr) => {
-    return parseInt(priceStr.replace(/[^0-9]/g, ""), 10) || 0;
-  };
-
   const filteredProducts = useMemo(() => {
     let products = [...allProducts];
 
     if (activeFilter !== "all") {
-      products = products.filter(
-        (product) => product.category === activeFilter
-      );
+      const categoryToFilter = filters.find(
+        (f) => f.key === activeFilter
+      )?.label;
+
+      if (categoryToFilter) {
+        products = products.filter(
+          (product) => product.category === categoryToFilter
+        );
+      } else {
+        products = [];
+      }
     }
 
     if (searchTerm) {
@@ -82,7 +86,7 @@ const ProductCatalog = () => {
     }
 
     products = products.filter((product) => {
-      const productPrice = parsePrice(product.variants[0].price);
+      const productPrice = product.variants[0].sellingPrice;
       return productPrice >= priceRange.min && productPrice <= priceRange.max;
     });
 
@@ -95,14 +99,12 @@ const ProductCatalog = () => {
         break;
       case "price-asc":
         products.sort(
-          (a, b) =>
-            parsePrice(a.variants[0].price) - parsePrice(b.variants[0].price)
+          (a, b) => a.variants[0].sellingPrice - b.variants[0].sellingPrice
         );
         break;
       case "price-desc":
         products.sort(
-          (a, b) =>
-            parsePrice(b.variants[0].price) - parsePrice(a.variants[0].price)
+          (a, b) => b.variants[0].sellingPrice - a.variants[0].sellingPrice
         );
         break;
       default:

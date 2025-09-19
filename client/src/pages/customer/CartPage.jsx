@@ -24,6 +24,7 @@ import {
   clearVoucher,
   toggleUsePoints,
 } from "../../../features/cart/cartReducer";
+import { FaShoppingCart } from "react-icons/fa";
 
 // ===== Helpers =====
 const currency = (v) =>
@@ -40,19 +41,13 @@ const DEMO_VOUCHERS = [
     code: "SAVE10",
     discountType: "PERCENT",
     discountValue: 10,
-    description: "Giảm 10% cho đơn đầu tiên.",
+    description: "Giảm 10% cho đơn hàng đầu tiên của bạn.",
   },
   {
     code: "LAP50K",
     discountType: "AMOUNT",
     discountValue: 50000,
-    description: "Giảm 50.000đ cho đơn từ 1.000.000đ.",
-  },
-  {
-    code: "PK15",
-    discountType: "PERCENT",
-    discountValue: 15,
-    description: "Áp dụng cho phụ kiện laptop.",
+    description: "Giảm 50.000đ cho đơn hàng từ 1.000.000đ.",
   },
 ];
 
@@ -69,14 +64,14 @@ export default function CartPage() {
   const [vouchers] = useState(DEMO_VOUCHERS);
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
   const [userPoints] = useState(458);
-  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const filteredItems = useMemo(() => {
     const k = keyword.trim().toLowerCase();
     if (!k) return cartItems;
     return cartItems.filter(
       (x) =>
-        x.name.toLowerCase().includes(k) || x.variant.toLowerCase().includes(k)
+        x.name.toLowerCase().includes(k) ||
+        x.variantName.toLowerCase().includes(k)
     );
   }, [cartItems, keyword]);
 
@@ -97,7 +92,7 @@ export default function CartPage() {
     if (!Array.isArray(cartItems)) return 0;
     return cartItems
       .filter((x) => x.checked)
-      .reduce((s, it) => s + it.price * it.qty, 0);
+      .reduce((s, it) => s + it.price * it.quantity, 0);
   }, [cartItems]);
 
   const voucherDiscount = useMemo(() => {
@@ -118,11 +113,13 @@ export default function CartPage() {
   const savings = voucherDiscount + pointsAppliedVnd;
   const payable = Math.max(0, selectedSubtotal - savings);
 
-  // Handlers sử dụng dispatch
+  // Handlers sử dụng dispatch, đã được cập nhật để dùng variantId
   const toggleAll = (checked) => dispatch(toggleAllItems(checked));
-  const toggleOne = (id, checked) => dispatch(toggleItem({ id, checked }));
-  const handleChangeQty = (id, delta) => dispatch(changeQty({ id, delta }));
-  const removeOne = (id) => dispatch(removeItem(id));
+  const toggleOne = (variantId, checked) =>
+    dispatch(toggleItem({ variantId, checked }));
+  const handleChangeQty = (variantId, delta) =>
+    dispatch(changeQty({ variantId, delta }));
+  const removeOne = (variantId) => dispatch(removeItem(variantId));
   const handleRemoveSelected = () => dispatch(removeSelected());
 
   const openVoucher = () => {
@@ -154,7 +151,7 @@ export default function CartPage() {
 
   return (
     <Container className="py-3">
-      {/* Search */}
+      <h2 className="mb-4">Giỏ Hàng Của Bạn</h2>
       <InputGroup className="mb-3">
         <Form.Control
           placeholder="Tìm trong giỏ hàng..."
@@ -163,7 +160,6 @@ export default function CartPage() {
         />
       </InputGroup>
 
-      {/* Select All */}
       <div className="d-flex align-items-center gap-3 mb-2">
         <Form.Check
           type="checkbox"
@@ -174,28 +170,54 @@ export default function CartPage() {
         />
       </div>
 
-      {/* Cart Table */}
-      <Table responsive hover className="align-middle">
-        {/* ... thead ... */}
+      <Table
+        responsive
+        hover
+        className="align-middle bg-white rounded shadow-sm"
+      >
+        <thead>
+          <tr>
+            <th style={{ width: "5%" }}></th>
+            <th style={{ width: "40%" }}>Sản phẩm</th>
+            <th className="text-end" style={{ width: "15%" }}>
+              Đơn giá
+            </th>
+            <th className="text-center" style={{ width: "15%" }}>
+              Số lượng
+            </th>
+            <th className="text-end" style={{ width: "15%" }}>
+              Thành tiền
+            </th>
+            <th className="text-center" style={{ width: "10%" }}>
+              Thao tác
+            </th>
+          </tr>
+        </thead>
         <tbody>
           {filteredItems.map((it) => (
-            <tr key={it.id}>
+            <tr key={it.variantId}>
               <td>
                 <Form.Check
                   type="checkbox"
                   checked={it.checked || false}
-                  onChange={(e) => toggleOne(it.id, e.target.checked)}
+                  onChange={(e) => toggleOne(it.variantId, e.target.checked)}
                 />
               </td>
               <td>
                 <Row className="g-2 align-items-center">
                   <Col xs="auto">
-                    <Image src={it.image} rounded width={72} height={72} />
+                    <Image
+                      src={it.image}
+                      rounded
+                      width={72}
+                      height={72}
+                      style={{ objectFit: "contain" }}
+                    />
                   </Col>
                   <Col className="text-start">
                     <div className="fw-semibold">{it.name}</div>
                     <div className="text-muted small">
-                      Phân loại: {it.variant}
+                      Phân loại: {it.variantName}
                     </div>
                   </Col>
                 </Row>
@@ -206,13 +228,13 @@ export default function CartPage() {
                   <Button
                     size="sm"
                     variant="outline-secondary"
-                    onClick={() => handleChangeQty(it.id, -1)}
-                    disabled={it.qty <= 1}
+                    onClick={() => handleChangeQty(it.variantId, -1)}
+                    disabled={it.quantity <= 1}
                   >
                     −
                   </Button>
                   <Form.Control
-                    value={it.qty}
+                    value={it.quantity}
                     readOnly
                     className="text-center"
                     style={{ width: 56 }}
@@ -220,20 +242,20 @@ export default function CartPage() {
                   <Button
                     size="sm"
                     variant="outline-secondary"
-                    onClick={() => handleChangeQty(it.id, 1)}
+                    onClick={() => handleChangeQty(it.variantId, 1)}
                   >
                     +
                   </Button>
                 </div>
               </td>
               <td className="text-end text-danger fw-semibold">
-                {currency(it.price * it.qty)}
+                {currency(it.price * it.quantity)}
               </td>
               <td className="text-center">
                 <Button
                   variant="link"
                   className="text-dark p-0"
-                  onClick={() => removeOne(it.id)}
+                  onClick={() => removeOne(it.variantId)}
                 >
                   Xóa
                 </Button>
@@ -243,6 +265,9 @@ export default function CartPage() {
           {filteredItems.length === 0 && (
             <tr>
               <td colSpan={6} className="text-center py-5">
+                <div className="mb-2">
+                  <FaShoppingCart size="3rem" className="text-muted" />
+                </div>
                 Giỏ hàng của bạn đang trống.
               </td>
             </tr>
@@ -250,7 +275,6 @@ export default function CartPage() {
         </tbody>
       </Table>
 
-      {/* Sticky Bottom Bar */}
       <div
         className="border-top bg-white p-3"
         style={{
@@ -267,17 +291,15 @@ export default function CartPage() {
               id="bottom-check-all"
               checked={allChecked}
               onChange={(e) => toggleAll(e.target.checked)}
-              label="Chọn tất cả"
+              label={`Chọn tất cả (${totalCount})`}
             />
-            <span className="text-muted small">
-              Tổng sản phẩm: <strong>{totalCount}</strong>
-            </span>
             <Button
               variant="link"
               className="text-danger p-0 ms-2"
               onClick={handleRemoveSelected}
+              disabled={selectedCount === 0}
             >
-              Xóa
+              Xóa ({selectedCount})
             </Button>
           </Col>
 
@@ -344,15 +366,7 @@ export default function CartPage() {
             <div className="d-flex align-items-center gap-3 justify-content-end">
               <div className="text-end">
                 <div className="small">
-                  Tổng cộng ({selectedCount} sản phẩm):
-                  <Button
-                    size="sm"
-                    variant="link"
-                    className="ps-1 pe-0 align-baseline"
-                    onClick={() => setShowBreakdown((s) => !s)}
-                  >
-                    {showBreakdown ? "Ẩn" : "Chi tiết"}
-                  </Button>
+                  Tổng thanh toán ({selectedCount} sản phẩm):
                 </div>
                 <div className="fs-5 fw-semibold text-danger">
                   {currency(payable)}
@@ -365,18 +379,17 @@ export default function CartPage() {
               </div>
               <Button
                 variant="danger"
+                size="lg"
                 disabled={selectedCount === 0}
                 onClick={() => navigate("/order")}
               >
                 Mua hàng
               </Button>
             </div>
-            {/* ... Breakdown Panel ... */}
           </Col>
         </Row>
       </div>
 
-      {/* Voucher Modal */}
       <Modal show={voucherModal} onHide={closeVoucher} centered size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Chọn / Nhập mã voucher</Modal.Title>

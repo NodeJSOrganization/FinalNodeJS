@@ -1,4 +1,3 @@
-import { FaShoppingCart } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 const ProductItem = ({ product }) => {
@@ -32,16 +31,16 @@ const ProductItem = ({ product }) => {
           <p className="card-text text-success fw-medium mb-2">
             Giá:{" "}
             {product.variants && product.variants.length > 0
-              ? product.variants[0].price
+              ? product.variants[0].sellingPrice
               : "N/A"}
           </p>
           <p className="card-text text-muted small">
             {product.description.substring(0, 100)}
             {product.description.length > 100 ? "..." : ""}
           </p>
-          <button className="btn btn-primary w-100 mt-2 mt-auto">
+          {/* <button className="btn btn-primary w-100 mt-2 mt-auto">
             <FaShoppingCart className="me-2" /> Thêm vào giỏ
-          </button>
+          </button> */}
         </div>
       </div>
     </Link>
