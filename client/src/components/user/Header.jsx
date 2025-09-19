@@ -1,10 +1,100 @@
 import { Navbar, Nav, Form, FormControl, Button } from "react-bootstrap";
-import { FaSearch, FaShoppingCart, FaThLarge, FaUser } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import {
+  FaSearch,
+  FaShoppingCart,
+  FaThLarge,
+  FaUser,
+  FaSignOutAlt,
+} from "react-icons/fa";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import "../../styles/Header.css";
 import Logo from "../../assets/images/logo_white_space.png";
+import { logout } from "../../../features/auth/authSlice"; // action có sẵn
 
 const Header = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const user = useSelector((state) => state.auth?.user); // user được load từ localStorage nếu có :contentReference[oaicite:2]{index=2}
+
+  const handleLogout = () => {
+    dispatch(logout()); // clear user + token :contentReference[oaicite:3]{index=3}
+    navigate("/");
+  };
+
+  const renderAuthArea = () => {
+    if (user && user.role === "customer") {
+      const avatarUrl = user?.avatar?.url;
+      const displayName = user?.fullName || user?.email || "Tài khoản";
+      return (
+        <div className="d-flex align-items-center">
+          <Link
+            to="/account"
+            className="nav-link d-flex align-items-center mx-2"
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="avatar"
+                className="me-2 rounded-circle"
+                style={{ width: 28, height: 28, objectFit: "cover" }}
+              />
+            ) : (
+              <div
+                className="me-2 rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center"
+                style={{ width: 28, height: 28 }}
+              >
+                <FaUser size={14} />
+              </div>
+            )}
+            <span
+              className="d-none d-md-inline text-truncate"
+              style={{ maxWidth: 140 }}
+              title={displayName}
+            >
+              {displayName}
+            </span>
+          </Link>
+
+          <Button
+            variant="outline-secondary"
+            className="custom-btn mx-2 d-flex align-items-center"
+            onClick={handleLogout}
+          >
+            <FaSignOutAlt className="me-2" />
+            <span className="d-none d-md-inline">Đăng xuất</span>
+          </Button>
+        </div>
+      );
+    }
+
+    if (user && user.role === "admin") {
+      return (
+        <div className="d-flex align-items-center">
+          <Link to="/admin/dashboard" className="custom-btn nav-link mx-2">
+            <FaUser size={18} />{" "}
+            <span className="d-none d-md-inline">Admin</span>
+          </Link>
+          <Button
+            variant="outline-secondary"
+            className="custom-btn mx-2 d-flex align-items-center"
+            onClick={handleLogout}
+          >
+            <FaSignOutAlt className="me-2" />
+            <span className="d-none d-md-inline">Đăng xuất</span>
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <Link to="/login" className="custom-btn nav-link">
+        <FaUser size={18} />{" "}
+        <span className="d-none d-md-inline">Đăng nhập</span>
+      </Link>
+    );
+  };
+
   return (
     <header className="w-100 bg-light">
       <div className="container">
@@ -47,15 +137,12 @@ const Header = () => {
               </Button>
             </Form>
 
-            <Nav className="ms-auto">
+            <Nav className="ms-auto align-items-center">
               <Link to="/cart" className="custom-btn mx-2 nav-link">
                 <FaShoppingCart size={18} />{" "}
                 <span className="d-none d-md-inline">Giỏ hàng</span>
               </Link>
-              <Link to="/login" className="custom-btn nav-link">
-                <FaUser size={18} />{" "}
-                <span className="d-none d-md-inline">Đăng nhập</span>
-              </Link>
+              {renderAuthArea()}
             </Nav>
           </Navbar.Collapse>
         </Navbar>
