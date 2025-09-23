@@ -2,7 +2,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
-// const cors = require("cors");
 
 dotenv.config();
 
@@ -41,8 +40,6 @@ app.use("/api/v1/discounts", discounts);
 app.use("/api/v1/promotions", promotions);
 app.use("/api/v1/users", users);
 app.use("/api/v1/inventory", inventoryRoutes);
-
-// app.use(cors());
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server đang chạy trên cổng ${PORT}`));
