@@ -28,7 +28,7 @@ const ProductCatalog = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { category: categoryFromUrl } = useParams();
+  const { category } = useParams();
 
   const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,8 +51,14 @@ const ProductCatalog = () => {
   }, [dispatch, allProducts.length]);
 
   useEffect(() => {
-    setActiveFilter(categoryFromUrl || "all");
-  }, [categoryFromUrl]);
+    const filterKeyFromPath = category || "all";
+    if (filters.some((f) => f.key === filterKeyFromPath)) {
+      setActiveFilter(filterKeyFromPath);
+    } else {
+      setActiveFilter("all");
+      navigate("/products");
+    }
+  }, [category, navigate]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -62,9 +68,7 @@ const ProductCatalog = () => {
     let products = [...allProducts];
 
     if (activeFilter !== "all") {
-      const categoryToFilter = filters.find(
-        (f) => f.key === activeFilter
-      )?.label;
+      const categoryToFilter = filters.find((f) => f.key === activeFilter)?.key;
 
       if (categoryToFilter) {
         products = products.filter(
