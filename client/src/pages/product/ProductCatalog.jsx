@@ -11,7 +11,6 @@ import {
   Card,
   Form,
 } from "react-bootstrap";
-import { ProductSampleData } from "../../data/ProductSampleData";
 import { useDispatch, useSelector } from "react-redux";
 import { setProducts } from "../../../features/product/productReducer";
 import ProductItem from "../../components/product/ProductItem";
