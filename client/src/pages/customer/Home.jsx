@@ -9,6 +9,7 @@ import {
   Image,
 } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import Logo from "../../assets/images/logo_white_space.png";
 import "../../styles/Home.css";
 import { useDispatch, useSelector } from "react-redux";
@@ -40,28 +41,40 @@ const Home = () => {
   }, [dispatch]);
 
   const allProducts = useSelector((state) => state.product.products);
-  const bestSellers = allProducts.slice(2, 8);
 
-  const currentTime = new Date("2025-09-06T13:31:00+07:00").getTime();
-  const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const { data } = await axios.get("/api/v1/products");
+        dispatch(setProducts(data.data));
+      } catch (err) {
+        console.log(err);
+      }
+    };
 
-  const newProducts = allProducts
-    .filter((product) => currentTime - product.createdAt < sevenDaysInMs)
-    .slice(0, 6);
+    fetchProducts();
+  }, []);
+
+  // best seller tính dựa vào số lượng đã bán nên chưa làm
+  const bestSellers = [];
+
+  const newProducts = [...allProducts]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Sắp xếp giảm dần
+    .slice(0, 6); // Lấy 6 sản phẩm đầu tiên
 
   const laptops = allProducts.filter(
-    (product) => product.category === "laptops"
+    (product) => product.category.name === "Laptop"
   );
   const monitors = allProducts.filter(
-    (product) => product.category === "monitors"
+    (product) => product.category.name === "Màn hình"
   );
   const hardDrives = allProducts.filter(
-    (product) => product.category === "hard-drives"
+    (product) => product.category.name === "Ram"
   );
 
   const filteredProducts = allProducts.filter((product) => {
     const matchesCategory =
-      activeTab === "all" || product.category === activeTab;
+      activeTab === "all" || product.category.name === activeTab;
     return matchesCategory;
   });
 
@@ -83,7 +96,7 @@ const Home = () => {
               <div className="d-grid gap-2 d-md-flex justify-content-md-center mb-4">
                 <Button variant="primary" size="lg">
                   <Link
-                    to="/laptops"
+                    to="/Laptop"
                     style={{
                       color: "white",
                       textDecoration: "none",
@@ -95,19 +108,14 @@ const Home = () => {
 
                 <Button
                   as={Link}
-                  to="/monitors"
+                  to="/Màn hình"
                   variant="outline-light"
                   size="lg"
                 >
                   Explore Monitors
                 </Button>
 
-                <Button
-                  as={Link}
-                  to="/hard-drives"
-                  variant="outline-primary"
-                  size="lg"
-                >
+                <Button as={Link} to="/Ram" variant="outline-primary" size="lg">
                   Hard Drives
                 </Button>
               </div>
@@ -152,7 +160,7 @@ const Home = () => {
         <h1 className="text-center text-primary mb-4 mt-5">Sản phẩm mới</h1>
         <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
           {newProducts.map((product) => (
-            <Col key={product.id}>
+            <Col key={product._id}>
               <ProductItem product={product} />
             </Col>
           ))}
@@ -194,7 +202,7 @@ const Home = () => {
         <h2 className="text-center text-primary mb-4">Laptops</h2>
         <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4 flex-column flex-md-row">
           {laptops.map((product) => (
-            <Col key={product.id} className="mb-4">
+            <Col key={product._id} className="mb-4">
               <ProductItem product={product} />
             </Col>
           ))}
@@ -236,7 +244,7 @@ const Home = () => {
         <h2 className="text-center text-primary mb-4">Monitors</h2>
         <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4 flex-column flex-md-row">
           {monitors.map((product) => (
-            <Col key={product.id} className="mb-4">
+            <Col key={product._id} className="mb-4">
               <ProductItem product={product} />
             </Col>
           ))}
@@ -278,7 +286,7 @@ const Home = () => {
         <h2 className="text-center text-primary mb-4">Hard Drives</h2>
         <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4 flex-column flex-md-row">
           {hardDrives.map((product) => (
-            <Col key={product.id} className="mb-4">
+            <Col key={product._id} className="mb-4">
               <ProductItem product={product} />
             </Col>
           ))}
@@ -292,9 +300,9 @@ const Home = () => {
         onSelect={(k) => setActiveTab(k)}
       >
         <Tab eventKey="all" title="Tất cả"></Tab>
-        <Tab eventKey="laptops" title="Laptops"></Tab>
-        <Tab eventKey="monitors" title="Monitors"></Tab>
-        <Tab eventKey="hard-drives" title="Hard Drives"></Tab>
+        <Tab eventKey="Laptop" title="Laptops"></Tab>
+        <Tab eventKey="Màn hình" title="Monitors"></Tab>
+        <Tab eventKey="Ram" title="Hard Drives"></Tab>
       </Tabs>
 
       <section className="mb-5">
@@ -305,7 +313,7 @@ const Home = () => {
         </h2>
         <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
           {filteredProducts.map((product) => (
-            <Col key={product.id}>
+            <Col key={product._id}>
               <ProductItem product={product} />
             </Col>
           ))}
