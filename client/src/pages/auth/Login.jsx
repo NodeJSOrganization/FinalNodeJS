@@ -22,7 +22,6 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
-  // State cục bộ cho input
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
