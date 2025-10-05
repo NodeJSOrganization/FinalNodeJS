@@ -28,7 +28,6 @@ const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Lấy state từ Redux store
   const { user, isLoading, isError, isSuccess, message } = useSelector(
     (state) => state.auth
   );
