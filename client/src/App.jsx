@@ -4,6 +4,7 @@ import { useRoutes, Navigate } from "react-router-dom";
 import authRoutes from "./routes/authRoutes.jsx";
 import userRoutes from "./routes/userRoutes.jsx";
 import adminRoutes from "./routes/adminRoutes.jsx";
+import GlobalLoader from './components/GlobalLoader';
 
 function App() {
   const allRoutes = useRoutes([
@@ -16,7 +17,7 @@ function App() {
     ...adminRoutes,
     // ...customerRoutes,
   ]);
-  return <>{allRoutes}</>;
+  return <> <GlobalLoader />{allRoutes}</>;
 }
 
 export default App;

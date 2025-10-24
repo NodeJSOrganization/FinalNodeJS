@@ -1,14 +1,17 @@
 // src/pages/admin/EditBrandPage/index.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, Alert } from 'react-bootstrap';
 import { FaCopyright, FaInfoCircle, FaImage } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
 
 const EditBrandPage = () => {
     const navigate = useNavigate();
-    const { id } = useParams(); // Lấy ID của thương hiệu từ URL
+    const { id } = useParams();
+    const dispatch = useDispatch();
 
     // State cho các trường của form
     const [name, setName] = useState('');
@@ -18,28 +21,27 @@ const EditBrandPage = () => {
     const [status, setStatus] = useState('active');
 
     // State cho việc gọi API
-    const [loading, setLoading] = useState(false);
-    const [fetchLoading, setFetchLoading] = useState(true); // State loading cho việc lấy dữ liệu ban đầu
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // Lấy dữ liệu thương hiệu cần sửa khi component được mount
     useEffect(() => {
         const fetchBrand = async () => {
+            dispatch(showLoading());
             try {
                 const { data } = await axios.get(`/api/v1/brands/${id}`);
                 setName(data.data.name);
                 setDescription(data.data.description);
                 setStatus(data.data.status);
-                setLogoPreview(data.data.logo); // Hiển thị logo cũ
-                setFetchLoading(false);
+                setLogoPreview(data.data.logo);
             } catch (err) {
                 setError('Không tìm thấy thương hiệu hoặc đã có lỗi xảy ra.');
-                setFetchLoading(false);
+                navigate('/admin/brands');
+            } finally {
+                dispatch(hideLoading());
             }
         };
         fetchBrand();
-    }, [id]);
+    }, [id, dispatch, navigate]);
 
     const handleLogoChange = (e) => {
         const file = e.target.files[0];
@@ -54,21 +56,21 @@ const EditBrandPage = () => {
         e.preventDefault();
         setError('');
         setSuccess('');
+        dispatch(showLoading());
 
         const formData = new FormData();
         formData.append('name', name);
         formData.append('description', description);
         formData.append('status', status);
-        if (logo) { // Chỉ thêm logo vào form data nếu người dùng chọn file mới
+        if (logo) {
             formData.append('logo', logo);
         }
 
         try {
-            setLoading(true);
             const token = localStorage.getItem('token');
             if (!token) {
                 setError("Phiên đăng nhập hết hạn.");
-                setLoading(false);
+                dispatch(hideLoading());
                 return;
             }
 
@@ -79,7 +81,6 @@ const EditBrandPage = () => {
                 }
             };
 
-            // Gửi yêu cầu PUT thay vì POST
             await axios.put(`/api/v1/brands/${id}`, formData, config);
 
             setSuccess('Cập nhật thương hiệu thành công! Đang chuyển về trang danh sách...');
@@ -90,13 +91,9 @@ const EditBrandPage = () => {
         } catch (err) {
             setError(err.response?.data?.msg || 'Cập nhật thất bại. Vui lòng thử lại.');
         } finally {
-            setLoading(false);
+            dispatch(hideLoading());
         }
     };
-
-    if (fetchLoading) {
-        return <div className="text-center p-4"><Spinner animation="border" /></div>;
-    }
 
     return (
         <div className="p-4">
@@ -108,7 +105,7 @@ const EditBrandPage = () => {
                                 <Card.Title as="h4"><FaCopyright className="me-2" />Sửa Thương hiệu</Card.Title>
                             </Card.Header>
                             <Card.Body>
-                                {error && <Alert variant="danger">{error}</Alert>}
+                                {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
                                 {success && <Alert variant="success">{success}</Alert>}
 
                                 <Form.Group className="mb-3" controlId="brandName">
@@ -118,7 +115,13 @@ const EditBrandPage = () => {
 
                                 <Form.Group className="mb-3" controlId="brandDescription">
                                     <Form.Label>Mô tả ngắn</Form.Label>
-                                    <Form.Control as="textarea" rows={3} required value={description} onChange={(e) => setDescription(e.target.value)} />
+                                    <Form.Control
+                                        as="textarea"
+                                        rows={3}
+                                        required
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)} // <-- ĐÃ SỬA LỖI Ở ĐÂY
+                                    />
                                 </Form.Group>
 
                                 <Form.Group controlId="brandLogo" className="mb-3">
@@ -141,8 +144,8 @@ const EditBrandPage = () => {
                             </Card.Body>
                             <Card.Footer className="text-end">
                                 <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/brands')}>Hủy</Button>
-                                <Button variant="primary" type="submit" disabled={loading}>
-                                    {loading ? <Spinner as="span" animation="border" size="sm" /> : 'Lưu thay đổi'}
+                                <Button variant="primary" type="submit">
+                                    Lưu thay đổi
                                 </Button>
                             </Card.Footer>
                         </Card>

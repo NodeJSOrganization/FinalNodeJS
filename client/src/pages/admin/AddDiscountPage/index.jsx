@@ -1,23 +1,23 @@
 // src/pages/admin/AddDiscountPage/index.jsx
 import React, { useState } from 'react';
-import { Form, Button, Card, Row, Col, InputGroup, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, InputGroup, Alert } from 'react-bootstrap';
 import { FaTags, FaTicketAlt, FaInfoCircle } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
 
 const AddDiscountPage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
-  // --- Đồng bộ state với API backend ---
   const [code, setCode] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState('fixed_amount'); // 'percent' hoặc 'fixed_amount'
+  const [type, setType] = useState('fixed_amount');
   const [value, setValue] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [status, setStatus] = useState('active'); // 'active' hoặc 'inactive'
+  const [status, setStatus] = useState('active');
 
-  // State cho việc gọi API
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -26,7 +26,7 @@ const AddDiscountPage = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
-
+    dispatch(showLoading());
 
     const payload = {
         code,
@@ -38,11 +38,10 @@ const AddDiscountPage = () => {
     };
 
     try {
-        setLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             setError("Phiên đăng nhập đã hết hạn.");
-            setLoading(false);
+            dispatch(hideLoading());
             return;
         }
 
@@ -58,7 +57,7 @@ const AddDiscountPage = () => {
     } catch (err) {
         setError(err.response?.data?.msg || 'Tạo mã giảm giá thất bại.');
     } finally {
-        setLoading(false);
+        dispatch(hideLoading());
     }
   };
 
@@ -105,7 +104,6 @@ const AddDiscountPage = () => {
                   <Col md={4}>
                     <Form.Group className="mb-3" controlId="type">
                       <Form.Label>Loại giảm giá</Form.Label>
-                      {/* --- Bỏ free_shipping, đổi giá trị cho khớp API --- */}
                       <Form.Select value={type} onChange={(e) => setType(e.target.value)}>
                         <option value="fixed_amount">Giảm tiền mặt</option>
                         <option value="percent">Giảm theo %</option>
@@ -142,12 +140,9 @@ const AddDiscountPage = () => {
                     </Form.Group>
                   </Col>
                 </Row>
-
-          
                 
                  <Form.Group className="mb-3" controlId="status">
                   <Form.Label>Trạng thái</Form.Label>
-                  {/* --- Sửa giá trị cho khớp API --- */}
                   <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
                     <option value="active">Hoạt động</option>
                     <option value="inactive">Không hoạt động</option>
@@ -156,13 +151,8 @@ const AddDiscountPage = () => {
               </Card.Body>
               <Card.Footer className="text-end">
                 <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/discounts')}>Hủy</Button>
-                <Button variant="primary" type="submit" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Spinner as="span" animation="border" size="sm" />
-                      {' '}Đang lưu...
-                    </>
-                  ) : 'Lưu mã giảm giá'}
+                <Button variant="primary" type="submit">
+                  Lưu mã giảm giá
                 </Button>
               </Card.Footer>
             </Card>
@@ -179,7 +169,6 @@ const AddDiscountPage = () => {
                 <ul className="mb-0 ps-3">
                   <li><strong>Loại giảm giá:</strong> Chọn loại phù hợp nhất với chiến dịch của bạn.</li>
                   <li><strong>Số lượng:</strong> Tổng số lần mã này có thể được sử dụng.</li>
-                  <li>Mã sẽ có hiệu lực từ <strong>00:00</strong> ngày bắt đầu đến <strong>23:59</strong> ngày kết thúc.</li>
                 </ul>
               </Alert>
             </Card.Body>

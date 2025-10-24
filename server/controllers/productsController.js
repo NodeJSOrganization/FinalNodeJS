@@ -79,7 +79,17 @@ exports.createProduct = async (req, res, next) => {
 
     } catch (error) {
         if (req.files) cleanupFilesOnError(req.files);
-        if (error.code === 11000) return res.status(400).json({ success: false, msg: 'Tên sản phẩm đã tồn tại' });
+        if (error.code === 11000) {
+            // Kiểm tra xem lỗi trùng lặp là do 'name' hay do 'variants.sku'
+            if (error.message.includes('name_1')) {
+                return res.status(400).json({ success: false, msg: 'Tên sản phẩm đã tồn tại.' });
+            }
+            if (error.message.includes('variants.sku_1')) {
+                return res.status(400).json({ success: false, msg: 'Mã SKU của một biến thể đã tồn tại. Vui lòng kiểm tra lại.' });
+            }
+            // Trường hợp lỗi trùng lặp khác
+            return res.status(400).json({ success: false, msg: 'Dữ liệu bị trùng lặp.' });
+        };
         console.error(error);
         res.status(500).json({ success: false, msg: 'Lỗi server', error: error.message });
     }
@@ -155,7 +165,7 @@ exports.updateProduct = async (req, res, next) => {
 
         const { variants, deleted_cloudinary_ids } = req.body;
         const files = req.files; // Mảng file từ upload.any()
-        
+
         // 1. Xóa ảnh cũ trên Cloudinary
         if (deleted_cloudinary_ids) {
             const idsToDelete = deleted_cloudinary_ids.split(',').filter(id => id);
@@ -177,10 +187,10 @@ exports.updateProduct = async (req, res, next) => {
             }
             uploadedFilesMap[file.fieldname].push(uploadResults[index]);
         });
-        
+
         // 3. Chuẩn bị dữ liệu cập nhật
         const updateData = { ...req.body };
-        
+
         // 4. Cập nhật ảnh chung
         let currentMainImages = product.images.filter(img => !deleted_cloudinary_ids || !deleted_cloudinary_ids.split(',').includes(img.cloudinary_id));
         if (uploadedFilesMap['new_main_images']) {

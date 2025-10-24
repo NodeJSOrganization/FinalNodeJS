@@ -1,40 +1,41 @@
 // src/pages/admin/AddProductPage/index.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Row, Col, InputGroup, Image, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, InputGroup, Image, Alert } from 'react-bootstrap';
 import { FaBoxes, FaTags, FaImage, FaPlusCircle, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
 import './AddProductPage.css';
+
+// --- ✨ 1. ĐỊNH NGHĨA CÁC HẰNG SỐ VALIDATION ---
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+// Danh sách các MIME type của ảnh được chấp nhận
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 
 const AddProductPage = () => {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
-    // State cho thông tin cơ bản của sản phẩm
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [brand, setBrand] = useState('');
     const [category, setCategory] = useState('');
-    const [images, setImages] = useState([]); // Lưu trữ mảng file ảnh chính
-    const [imagePreviews, setImagePreviews] = useState([]); // Lưu trữ mảng URL xem trước
-
-    // State cho các biến thể (variants)
+    const [images, setImages] = useState([]);
+    const [imagePreviews, setImagePreviews] = useState([]);
     const [variants, setVariants] = useState([
-        { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, imagePreview: '' }
+        { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, imagePreview: '', sku: '' }
     ]);
-
-    // State để lấy dữ liệu cho dropdowns
     const [allBrands, setAllBrands] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
-
-    // State cho API
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // --- LẤY DỮ LIỆU BRANDS VÀ CATEGORIES TỪ API ---
     useEffect(() => {
         const fetchData = async () => {
+            dispatch(showLoading());
             try {
                 const [brandsRes, categoriesRes] = await Promise.all([
                     axios.get('/api/v1/brands'),
@@ -44,17 +45,45 @@ const AddProductPage = () => {
                 setAllCategories(categoriesRes.data.data);
             } catch (err) {
                 setError('Không thể tải dữ liệu cho Thương hiệu và Danh mục.');
+            } finally {
+                dispatch(hideLoading());
             }
         };
         fetchData();
-    }, []);
+    }, [dispatch]);
+    
+    // --- ✨ 2. TẠO HÀM VALIDATE FILE TÁI SỬ DỤNG ---
+    const validateFile = (file) => {
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+            return `Định dạng file không hợp lệ. Vui lòng chỉ chọn file ảnh.`;
+        }
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            return `Kích thước ảnh quá lớn (${(file.size / 1024 / 1024).toFixed(2)}MB). Tối đa là ${MAX_FILE_SIZE_MB}MB.`;
+        }
+        return null; // Không có lỗi
+    };
 
-    // --- CÁC HÀM XỬ LÝ FORM (giữ nguyên và cải tiến) ---
+    // --- ✨ 3. CẬP NHẬT HÀM XỬ LÝ ẢNH CHÍNH ---
     const handleMainImagesChange = (e) => {
+        setError(''); // Xóa lỗi cũ
         const files = Array.from(e.target.files);
-        const newPreviews = files.map(file => URL.createObjectURL(file));
-        setImages(prev => [...prev, ...files]);
-        setImagePreviews(prev => [...prev, ...newPreviews]);
+        const validFiles = [];
+        const validPreviews = [];
+
+        for (const file of files) {
+            const errorMessage = validateFile(file);
+            if (errorMessage) {
+                setError(errorMessage); // Hiển thị lỗi của file đầu tiên không hợp lệ
+                e.target.value = null; // Reset input để người dùng có thể chọn lại
+                return; // Dừng xử lý
+            }
+            validFiles.push(file);
+            validPreviews.push(URL.createObjectURL(file));
+        }
+
+        setImages(prev => [...prev, ...validFiles]);
+        setImagePreviews(prev => [...prev, ...validPreviews]);
+        e.target.value = null; // Reset input
     };
 
     const removeMainImage = (indexToRemove) => {
@@ -71,9 +100,18 @@ const AddProductPage = () => {
         setVariants(values);
     };
 
+    // --- ✨ 4. CẬP NHẬT HÀM XỬ LÝ ẢNH BIẾN THỂ ---
     const handleVariantImageChange = (index, event) => {
+        setError(''); // Xóa lỗi cũ
         const file = event.target.files[0];
         if (file) {
+            const errorMessage = validateFile(file);
+            if (errorMessage) {
+                setError(errorMessage);
+                event.target.value = null; // Reset input
+                return;
+            }
+
             const newVariants = [...variants];
             if (newVariants[index].imagePreview) {
                 URL.revokeObjectURL(newVariants[index].imagePreview);
@@ -82,10 +120,11 @@ const AddProductPage = () => {
             newVariants[index].imagePreview = URL.createObjectURL(file);
             setVariants(newVariants);
         }
+        event.target.value = null; // Reset input
     };
 
     const addVariant = () => {
-        setVariants([...variants, { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, imagePreview: '' }]);
+        setVariants([...variants, { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, imagePreview: '', sku: '' }]);
     };
 
     const removeVariant = (index) => {
@@ -96,22 +135,18 @@ const AddProductPage = () => {
         setVariants(variants.filter((_, i) => i !== index));
     };
 
-
-    // --- HÀM SUBMIT CHÍNH ĐỂ GỌI API ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
+        dispatch(showLoading());
 
         const formData = new FormData();
-
-        // 1. Thêm các trường dữ liệu cơ bản
         formData.append('name', name);
         formData.append('description', description);
         formData.append('brand', brand);
         formData.append('category', category);
 
-        // 2. Chuẩn bị mảng variants và thêm ảnh biến thể vào FormData
         const variantsPayload = variants.map((variant, index) => {
             const variantData = {
                 color: variant.color,
@@ -121,7 +156,6 @@ const AddProductPage = () => {
                 sku: variant.sku
             };
             if (variant.image) {
-                // Đặt một định danh duy nhất cho ảnh để backend có thể map
                 const imageIdentifier = `variant_image_${index}`;
                 formData.append(imageIdentifier, variant.image);
                 variantData.imageIdentifier = imageIdentifier;
@@ -129,45 +163,35 @@ const AddProductPage = () => {
             return variantData;
         });
 
-        // Thêm mảng variants dưới dạng chuỗi JSON
         formData.append('variants', JSON.stringify(variantsPayload));
-
-        // 3. Thêm các ảnh chính
         images.forEach(file => {
-            formData.append('images', file); // 'images' phải khớp với backend
+            formData.append('images', file);
         });
 
         try {
-            setLoading(true);
             const token = localStorage.getItem('token');
             const config = {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'multipart/form-data'
-                }
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
             };
-
             await axios.post('/api/v1/products', formData, config);
-
             setSuccess('Thêm sản phẩm thành công! Đang chuyển hướng...');
             setTimeout(() => navigate('/admin/products'), 2000);
         } catch (err) {
             setError(err.response?.data?.msg || 'Thêm sản phẩm thất bại.');
         } finally {
-            setLoading(false);
+            dispatch(hideLoading());
         }
     };
 
     return (
         <div className="p-4">
             <Form onSubmit={handleSubmit}>
-                {error && <Alert variant="danger">{error}</Alert>}
+                {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
                 {success && <Alert variant="success">{success}</Alert>}
                 <Row>
-                    {/* --- CỘT TRÁI: THÔNG TIN CƠ BẢN & ẢNH --- */}
                     <Col lg={8}>
-                        {/* ... Card thông tin cơ bản ... */}
                         <Card className="card-custom mb-4">
+                             <Card.Header><Card.Title as="h5">Thông tin cơ bản</Card.Title></Card.Header>
                             <Card.Body>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Tên sản phẩm</Form.Label>
@@ -180,13 +204,12 @@ const AddProductPage = () => {
                             </Card.Body>
                         </Card>
 
-                        {/* ... Card hình ảnh ... */}
                         <Card className="card-custom mb-4">
                             <Card.Header><Card.Title as="h5"><FaImage /> Hình ảnh chính</Card.Title></Card.Header>
                             <Card.Body>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Tải ảnh lên (chọn nhiều ảnh)</Form.Label>
-                                    <Form.Control type="file" accept="image/*" multiple onChange={handleMainImagesChange} />
+                                    <Form.Label>Tải ảnh lên (tối đa {MAX_FILE_SIZE_MB}MB mỗi ảnh)</Form.Label>
+                                    <Form.Control type="file" accept={ALLOWED_IMAGE_TYPES.join(',')} multiple onChange={handleMainImagesChange} />
                                 </Form.Group>
                                 <div className="main-images-preview-container">
                                     {imagePreviews.map((preview, index) => (
@@ -200,7 +223,6 @@ const AddProductPage = () => {
                         </Card>
                     </Col>
 
-                    {/* --- CỘT PHẢI: PHÂN LOẠI --- */}
                     <Col lg={4}>
                         <Card className="card-custom mb-4">
                             <Card.Header><Card.Title as="h5"><FaTags /> Phân loại</Card.Title></Card.Header>
@@ -224,7 +246,6 @@ const AddProductPage = () => {
                     </Col>
                 </Row>
 
-                {/* --- KHU VỰC BIẾN THỂ (VARIANTS) --- */}
                 <Card className="card-custom mb-4">
                     <Card.Header><Card.Title as="h5"><FaBoxes /> Các biến thể</Card.Title></Card.Header>
                     <Card.Body>
@@ -236,28 +257,41 @@ const AddProductPage = () => {
                                             <Form.Group>
                                                 <Form.Label>Ảnh biến thể</Form.Label>
                                                 {variant.imagePreview ? <Image src={variant.imagePreview} thumbnail /> : <div className="variant-image-placeholder"><FaImage /></div>}
-                                                <Form.Control type="file" size="sm" className="mt-2" onChange={e => handleVariantImageChange(index, e)} />
+                                                <Form.Control type="file" size="sm" className="mt-2" accept={ALLOWED_IMAGE_TYPES.join(',')} onChange={e => handleVariantImageChange(index, e)} />
                                             </Form.Group>
                                         </Col>
                                         <Col md={10}>
-
                                             <Row>
                                                 <Col md={6}>
                                                     <Form.Group>
                                                         <Form.Label>SKU</Form.Label>
-                                                        <Form.Control
-                                                            type="text"
-                                                            name="sku"
-                                                            placeholder="VD: LNV-LOQ-XANH-32"
-                                                            value={variant.sku || ''} // Hiển thị giá trị sku hoặc chuỗi rỗng
-                                                            onChange={e => handleVariantChange(index, e)}
-                                                        />
+                                                        <Form.Control type="text" name="sku" placeholder="VD: LNV-LOQ-XANH-32" value={variant.sku || ''} onChange={e => handleVariantChange(index, e)} />
                                                     </Form.Group>
                                                 </Col>
-                                                <Col md={6}><Form.Group><Form.Label>Màu sắc</Form.Label><Form.Control type="text" name="color" value={variant.color} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
-                                                <Col md={6}><Form.Group><Form.Label>Hiệu năng</Form.Label><Form.Control type="text" name="performance" value={variant.performance} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
-                                                <Col md={6} className="mt-3"><Form.Group><Form.Label>Giá nhập</Form.Label><Form.Control type="number" name="costPrice" value={variant.costPrice} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
-                                                <Col md={6} className="mt-3"><Form.Group><Form.Label>Giá bán</Form.Label><Form.Control type="number" name="sellingPrice" value={variant.sellingPrice} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
+                                                <Col md={6}>
+                                                    <Form.Group>
+                                                        <Form.Label>Màu sắc</Form.Label>
+                                                        <Form.Control type="text" name="color" value={variant.color} onChange={e => handleVariantChange(index, e)} required />
+                                                    </Form.Group>
+                                                </Col>
+                                                <Col md={6}>
+                                                    <Form.Group className="mt-3">
+                                                        <Form.Label>Hiệu năng</Form.Label>
+                                                        <Form.Control type="text" name="performance" value={variant.performance} onChange={e => handleVariantChange(index, e)} required />
+                                                    </Form.Group>
+                                                </Col>
+                                                <Col md={6}>
+                                                    <Form.Group className="mt-3">
+                                                        <Form.Label>Giá nhập</Form.Label>
+                                                        <Form.Control type="number" name="costPrice" value={variant.costPrice} onChange={e => handleVariantChange(index, e)} required />
+                                                    </Form.Group>
+                                                </Col>
+                                                <Col md={6}>
+                                                    <Form.Group className="mt-3">
+                                                        <Form.Label>Giá bán</Form.Label>
+                                                        <Form.Control type="number" name="sellingPrice" value={variant.sellingPrice} onChange={e => handleVariantChange(index, e)} required />
+                                                    </Form.Group>
+                                                </Col>
                                             </Row>
                                             {variants.length > 1 && <Button variant="outline-danger" size="sm" className="mt-3" onClick={() => removeVariant(index)}><FaTrash /> Xóa</Button>}
                                         </Col>
@@ -269,12 +303,9 @@ const AddProductPage = () => {
                     </Card.Body>
                 </Card>
 
-                {/* --- NÚT SUBMIT --- */}
                 <div className="d-flex justify-content-end">
                     <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/products')}>Hủy</Button>
-                    <Button variant="primary" type="submit" disabled={loading}>
-                        {loading ? <><Spinner size="sm" /> Đang lưu...</> : 'Lưu sản phẩm'}
-                    </Button>
+                    <Button variant="primary" type="submit">Lưu sản phẩm</Button>
                 </div>
             </Form>
         </div>
