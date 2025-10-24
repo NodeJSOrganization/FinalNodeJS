@@ -7,6 +7,7 @@ import adminRoutes from "./routes/adminRoutes.jsx";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { syncCart } from "../features/cart/cartReducer.js";
+import GlobalLoader from "./components/GlobalLoader";
 
 function App() {
   const dispatch = useDispatch();
@@ -24,7 +25,13 @@ function App() {
     ...adminRoutes,
     // ...customerRoutes,
   ]);
-  return <>{allRoutes}</>;
+  return (
+    <>
+      {" "}
+      <GlobalLoader />
+      {allRoutes}
+    </>
+  );
 }
 
 export default App;

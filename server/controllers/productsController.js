@@ -25,88 +25,81 @@ const cleanupFilesOnError = (files) => {
 // @route   POST /api/v1/products
 // @access  Private/Admin
 exports.createProduct = async (req, res, next) => {
-  try {
-    const { name, description, category, brand, variants } = req.body;
-
-    // 1. Parse và kiểm tra variants
-    let parsedVariants;
     try {
-      parsedVariants = JSON.parse(variants);
-    } catch (e) {
-      return res
-        .status(400)
-        .json({ success: false, msg: "Variants không hợp lệ" });
-    }
+        const { name, description, category, brand, variants } = req.body;
 
-    // 2. req.files bây giờ là một MẢNG các object file khi dùng upload.any()
-    const files = req.files;
+        // 1. Parse và kiểm tra variants
+        let parsedVariants;
+        try {
+            parsedVariants = JSON.parse(variants);
+        } catch (e) {
+            return res.status(400).json({ success: false, msg: 'Variants không hợp lệ' });
+        }
 
-    // 3. Tải tất cả ảnh lên Cloudinary
-    const uploadPromises = files.map((file) =>
-      cloudinary.uploader.upload(file.path, {
-        folder:
-          file.fieldname === "images"
-            ? "products/general"
-            : "products/variants",
-      })
-    );
-    const uploadResults = await Promise.all(uploadPromises);
+        // 2. req.files bây giờ là một MẢNG các object file khi dùng upload.any()
+        const files = req.files;
 
-    // Tạo một map để dễ dàng tìm kiếm ảnh đã upload bằng fieldname
-    const uploadedFilesMap = {};
-    files.forEach((file, index) => {
-      if (!uploadedFilesMap[file.fieldname]) {
-        uploadedFilesMap[file.fieldname] = [];
-      }
-      uploadedFilesMap[file.fieldname].push(uploadResults[index]);
-    });
+        // 3. Tải tất cả ảnh lên Cloudinary
+        const uploadPromises = files.map(file => cloudinary.uploader.upload(file.path, {
+            folder: file.fieldname === 'images' ? 'products/general' : 'products/variants'
+        }));
+        const uploadResults = await Promise.all(uploadPromises);
 
-    // 4. Gán ảnh vào đúng chỗ
-    const productImages = (uploadedFilesMap["images"] || []).map((result) => ({
-      url: result.secure_url,
-      cloudinary_id: result.public_id,
-    }));
+        // Tạo một map để dễ dàng tìm kiếm ảnh đã upload bằng fieldname
+        const uploadedFilesMap = {};
+        files.forEach((file, index) => {
+            if (!uploadedFilesMap[file.fieldname]) {
+                uploadedFilesMap[file.fieldname] = [];
+            }
+            uploadedFilesMap[file.fieldname].push(uploadResults[index]);
+        });
 
-    const finalVariants = parsedVariants.map((variant) => {
-      const identifier = variant.imageIdentifier;
-      if (
-        identifier &&
-        uploadedFilesMap[identifier] &&
-        uploadedFilesMap[identifier][0]
-      ) {
-        const result = uploadedFilesMap[identifier][0];
-        variant.image = {
-          url: result.secure_url,
-          cloudinary_id: result.public_id,
+        // 4. Gán ảnh vào đúng chỗ
+        const productImages = (uploadedFilesMap['images'] || []).map(result => ({
+            url: result.secure_url,
+            cloudinary_id: result.public_id
+        }));
+
+        const finalVariants = parsedVariants.map(variant => {
+            const identifier = variant.imageIdentifier;
+            if (identifier && uploadedFilesMap[identifier] && uploadedFilesMap[identifier][0]) {
+                const result = uploadedFilesMap[identifier][0];
+                variant.image = {
+                    url: result.secure_url,
+                    cloudinary_id: result.public_id
+                };
+            }
+            delete variant.imageIdentifier; // Xóa key tạm sau khi đã xử lý
+            return variant;
+        });
+
+        // 5. Tạo sản phẩm
+        const product = await Product.create({
+            name, description, category, brand,
+            images: productImages,
+            variants: finalVariants
+        });
+
+        res.status(201).json({ success: true, data: product });
+
+    } catch (error) {
+        if (req.files) cleanupFilesOnError(req.files);
+        if (error.code === 11000) {
+            // Kiểm tra xem lỗi trùng lặp là do 'name' hay do 'variants.sku'
+            if (error.message.includes('name_1')) {
+                return res.status(400).json({ success: false, msg: 'Tên sản phẩm đã tồn tại.' });
+            }
+            if (error.message.includes('variants.sku_1')) {
+                return res.status(400).json({ success: false, msg: 'Mã SKU của một biến thể đã tồn tại. Vui lòng kiểm tra lại.' });
+            }
+            // Trường hợp lỗi trùng lặp khác
+            return res.status(400).json({ success: false, msg: 'Dữ liệu bị trùng lặp.' });
         };
-      }
-      delete variant.imageIdentifier; // Xóa key tạm sau khi đã xử lý
-      return variant;
-    });
-
-    // 5. Tạo sản phẩm
-    const product = await Product.create({
-      name,
-      description,
-      category,
-      brand,
-      images: productImages,
-      variants: finalVariants,
-    });
-
-    res.status(201).json({ success: true, data: product });
-  } catch (error) {
-    if (req.files) cleanupFilesOnError(req.files);
-    if (error.code === 11000)
-      return res
-        .status(400)
-        .json({ success: false, msg: "Tên sản phẩm đã tồn tại" });
-    console.error(error);
-    res
-      .status(500)
-      .json({ success: false, msg: "Lỗi server", error: error.message });
-  }
+        console.error(error);
+        res.status(500).json({ success: false, msg: 'Lỗi server', error: error.message });
+    }
 };
+
 
 // @desc    Lấy tất cả sản phẩm
 // @route   GET /api/v1/products
@@ -179,118 +172,78 @@ exports.deleteProduct = async (req, res, next) => {
   }
 };
 
-// @desc    Cập nhật một sản phẩm (Nâng cao)
-// @route   PUT /api/v1/products/:id
-// @access  Private/Admin
 exports.updateProduct = async (req, res, next) => {
-  try {
-    let product = await Product.findById(req.params.id);
-    if (!product) {
-      return res
-        .status(404)
-        .json({ success: false, msg: "Không tìm thấy sản phẩm" });
-    }
-
-    const { variants, deleted_cloudinary_ids } = req.body;
-    const files = req.files; // Mảng file từ upload.any()
-
-    // 1. Xóa ảnh cũ trên Cloudinary
-    if (deleted_cloudinary_ids) {
-      const idsToDelete = deleted_cloudinary_ids.split(",").filter((id) => id);
-      if (idsToDelete.length > 0) {
-        await cloudinary.api.delete_resources(idsToDelete);
-      }
-    }
-
-    // 2. Tải ảnh mới lên Cloudinary
-    const uploadPromises = files.map((file) =>
-      cloudinary.uploader.upload(file.path, {
-        folder:
-          file.fieldname === "new_main_images"
-            ? "products/general"
-            : "products/variants",
-      })
-    );
-    const uploadResults = await Promise.all(uploadPromises);
-
-    const uploadedFilesMap = {};
-    files.forEach((file, index) => {
-      if (!uploadedFilesMap[file.fieldname]) {
-        uploadedFilesMap[file.fieldname] = [];
-      }
-      uploadedFilesMap[file.fieldname].push(uploadResults[index]);
-    });
-
-    // 3. Chuẩn bị dữ liệu cập nhật
-    const updateData = { ...req.body };
-
-    // 4. Cập nhật ảnh chung
-    let currentMainImages = product.images.filter(
-      (img) =>
-        !deleted_cloudinary_ids ||
-        !deleted_cloudinary_ids.split(",").includes(img.cloudinary_id)
-    );
-    if (uploadedFilesMap["new_main_images"]) {
-      uploadedFilesMap["new_main_images"].forEach((result) => {
-        currentMainImages.push({
-          url: result.secure_url,
-          cloudinary_id: result.public_id,
-        });
-      });
-    }
-    updateData.images = currentMainImages;
-
-    // 5. Cập nhật variants
-    if (variants) {
-      let parsedVariants = JSON.parse(variants);
-      const finalVariants = parsedVariants.map((variant) => {
-        const identifier = variant.imageIdentifier;
-        if (
-          identifier &&
-          uploadedFilesMap[identifier] &&
-          uploadedFilesMap[identifier][0]
-        ) {
-          const result = uploadedFilesMap[identifier][0];
-          variant.image = {
-            url: result.secure_url,
-            cloudinary_id: result.public_id,
-          };
+    try {
+        let product = await Product.findById(req.params.id);
+        if (!product) {
+            return res.status(404).json({ success: false, msg: 'Không tìm thấy sản phẩm' });
         }
-        delete variant.imageIdentifier;
-        return variant;
-      });
-      updateData.variants = finalVariants;
-    }
 
-    // 6. Cập nhật sản phẩm
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    );
-    res.status(200).json({ success: true, data: updatedProduct });
-  } catch (error) {
-    if (req.files) {
-      // Dọn dẹp file tạm nếu có lỗi
-      const allFiles = [
-        ...(req.files.new_main_images || []),
-        ...(req.files.new_variant_images || []),
-      ];
-      allFiles.forEach((file) =>
-        require("fs").unlink(file.path, (err) => {
-          if (err) console.error(err);
-        })
-      );
+        const { variants, deleted_cloudinary_ids } = req.body;
+        const files = req.files; // Mảng file từ upload.any()
+
+        // 1. Xóa ảnh cũ trên Cloudinary
+        if (deleted_cloudinary_ids) {
+            const idsToDelete = deleted_cloudinary_ids.split(',').filter(id => id);
+            if (idsToDelete.length > 0) {
+                await cloudinary.api.delete_resources(idsToDelete);
+            }
+        }
+
+        // 2. Tải ảnh mới lên Cloudinary
+        const uploadPromises = files.map(file => cloudinary.uploader.upload(file.path, {
+            folder: file.fieldname === 'new_main_images' ? 'products/general' : 'products/variants'
+        }));
+        const uploadResults = await Promise.all(uploadPromises);
+
+        const uploadedFilesMap = {};
+        files.forEach((file, index) => {
+            if (!uploadedFilesMap[file.fieldname]) {
+                uploadedFilesMap[file.fieldname] = [];
+            }
+            uploadedFilesMap[file.fieldname].push(uploadResults[index]);
+        });
+
+        // 3. Chuẩn bị dữ liệu cập nhật
+        const updateData = { ...req.body };
+
+        // 4. Cập nhật ảnh chung
+        let currentMainImages = product.images.filter(img => !deleted_cloudinary_ids || !deleted_cloudinary_ids.split(',').includes(img.cloudinary_id));
+        if (uploadedFilesMap['new_main_images']) {
+            uploadedFilesMap['new_main_images'].forEach(result => {
+                currentMainImages.push({ url: result.secure_url, cloudinary_id: result.public_id });
+            });
+        }
+        updateData.images = currentMainImages;
+
+        // 5. Cập nhật variants
+        if (variants) {
+            let parsedVariants = JSON.parse(variants);
+            const finalVariants = parsedVariants.map(variant => {
+                const identifier = variant.imageIdentifier;
+                if (identifier && uploadedFilesMap[identifier] && uploadedFilesMap[identifier][0]) {
+                    const result = uploadedFilesMap[identifier][0];
+                    variant.image = { url: result.secure_url, cloudinary_id: result.public_id };
+                }
+                delete variant.imageIdentifier;
+                return variant;
+            });
+            updateData.variants = finalVariants;
+        }
+
+        // 6. Cập nhật sản phẩm
+        const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
+        res.status(200).json({ success: true, data: updatedProduct });
+
+    } catch (error) {
+        if (req.files) { // Dọn dẹp file tạm nếu có lỗi
+            const allFiles = [...(req.files.new_main_images || []), ...(req.files.new_variant_images || [])];
+            allFiles.forEach(file => require('fs').unlink(file.path, err => { if (err) console.error(err) }));
+        }
+        if (error.code === 11000) return res.status(400).json({ success: false, msg: 'Tên sản phẩm đã tồn tại' });
+        console.error(error);
+        res.status(500).json({ success: false, msg: 'Lỗi server', error: error.message });
     }
-    if (error.code === 11000)
-      return res
-        .status(400)
-        .json({ success: false, msg: "Tên sản phẩm đã tồn tại" });
-    console.error(error);
-    res
-      .status(500)
-      .json({ success: false, msg: "Lỗi server", error: error.message });
-  }
 };
 
 // @desc    Xóa TẤT CẢ các sản phẩm

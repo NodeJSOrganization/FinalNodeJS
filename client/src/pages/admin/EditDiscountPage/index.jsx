@@ -1,15 +1,18 @@
 // src/pages/admin/EditDiscountPage/index.jsx
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Row, Col, InputGroup, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, InputGroup, Alert } from 'react-bootstrap';
 import { FaTags, FaTicketAlt, FaInfoCircle } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
 
 const EditDiscountPage = () => {
     const navigate = useNavigate();
     const { id } = useParams();
+    const dispatch = useDispatch();
 
-    // State cho form
+    // Form states
     const [code, setCode] = useState('');
     const [description, setDescription] = useState('');
     const [type, setType] = useState('fixed_amount');
@@ -17,14 +20,13 @@ const EditDiscountPage = () => {
     const [quantity, setQuantity] = useState('');
     const [status, setStatus] = useState('active');
 
-    // State cho API
-    const [loading, setLoading] = useState(false);
-    const [fetchLoading, setFetchLoading] = useState(true);
+    // UI states
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
     useEffect(() => {
         const fetchDiscount = async () => {
+            dispatch(showLoading());
             try {
                 const { data } = await axios.get(`/api/v1/discounts/${id}`);
                 const discount = data.data;
@@ -33,39 +35,36 @@ const EditDiscountPage = () => {
                 setType(discount.type);
                 setValue(discount.value);
                 setQuantity(discount.quantity);
-                // Định dạng lại ngày tháng để input type="date" có thể hiển thị
                 setStatus(discount.status);
             } catch (err) {
                 setError('Không thể tải dữ liệu mã giảm giá.');
             } finally {
-                setFetchLoading(false);
+                dispatch(hideLoading());
             }
         };
         fetchDiscount();
-    }, [id]);
+    }, [id, dispatch]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
+        dispatch(showLoading());
 
-        // --- BƯỚC 2: CHUẨN BỊ PAYLOAD CHÍNH XÁC ---
-        // Gửi đi các giá trị đã được làm sạch và đúng kiểu dữ liệu
         const payload = {
-            code: code.trim(), // Loại bỏ khoảng trắng thừa
+            code: code.trim(),
             description: description.trim(),
             type,
-            value: Number(value), // Đảm bảo giá trị là kiểu Number
-            quantity: Number(quantity), // Đảm bảo số lượng là kiểu Number
+            value: Number(value),
+            quantity: Number(quantity),
             status
         };
 
         try {
-            setLoading(true);
             const token = localStorage.getItem('token');
             if (!token) {
                 setError("Phiên đăng nhập đã hết hạn.");
-                setLoading(false);
+                dispatch(hideLoading());
                 return;
             }
 
@@ -73,22 +72,17 @@ const EditDiscountPage = () => {
                 headers: { Authorization: `Bearer ${token}` }
             };
 
-            // Gửi yêu cầu PUT với payload đã được chuẩn hóa
             await axios.put(`/api/v1/discounts/${id}`, payload, config);
 
             setSuccess('Cập nhật thành công! Đang chuyển hướng...');
             setTimeout(() => navigate('/admin/discounts'), 2000);
         } catch (err) {
-            // --- BƯỚC 3: CUNG CẤP THÔNG TIN LỖI CHI TIẾT HƠN ---
-            // In lỗi ra console để debug
             console.error("Lỗi khi cập nhật mã giảm giá:", err.response || err);
             setError(err.response?.data?.msg || 'Cập nhật thất bại. Vui lòng kiểm tra lại dữ liệu đầu vào.');
         } finally {
-            setLoading(false);
+            dispatch(hideLoading());
         }
     };
-
-    if (fetchLoading) return <div className="text-center p-5"><Spinner /></div>;
 
     return (
         <div className="p-4">
@@ -100,7 +94,7 @@ const EditDiscountPage = () => {
                                 <Card.Title as="h4"><FaTags className="me-2" /> Sửa Mã giảm giá</Card.Title>
                             </Card.Header>
                             <Card.Body>
-                                {error && <Alert variant="danger">{error}</Alert>}
+                                {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
                                 {success && <Alert variant="success">{success}</Alert>}
 
                                 <Form.Group className="mb-3" controlId="code">
@@ -173,8 +167,8 @@ const EditDiscountPage = () => {
                             </Card.Body>
                             <Card.Footer className="text-end">
                                 <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/discounts')}>Hủy</Button>
-                                <Button variant="primary" type="submit" disabled={loading}>
-                                    {loading ? <><Spinner as="span" size="sm" /> Đang lưu...</> : 'Lưu thay đổi'}
+                                <Button variant="primary" type="submit">
+                                    Lưu thay đổi
                                 </Button>
                             </Card.Footer>
                         </Card>
@@ -189,7 +183,6 @@ const EditDiscountPage = () => {
                                 <ul className="mb-0 ps-3">
                                     <li><strong>Loại giảm giá:</strong> Chọn loại phù hợp nhất với chiến dịch của bạn.</li>
                                     <li><strong>Số lượng:</strong> Tổng số lần mã này có thể được sử dụng.</li>
-                                    <li>Mã sẽ có hiệu lực từ <strong>00:00</strong> ngày bắt đầu đến <strong>23:59</strong> ngày kết thúc.</li>
                                 </ul>
                             </Alert>
                         </Card.Body>

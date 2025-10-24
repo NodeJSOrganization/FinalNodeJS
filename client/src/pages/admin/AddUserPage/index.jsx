@@ -1,11 +1,16 @@
+// src/pages/admin/AddUserPage.jsx
+
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Row, Col, Alert, Spinner, Image } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, Alert, Image } from 'react-bootstrap';
 import { FaUserPlus } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
 
 const AddUserPage = () => {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
     // Form states
     const [formData, setFormData] = useState({ fullName: '', email: '', password: '', phoneNumber: '', gender: '', role: 'customer' });
@@ -19,12 +24,20 @@ const AddUserPage = () => {
     const [wards, setWards] = useState([]);
 
     // UI states
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
     useEffect(() => {
-        axios.get('https://provinces.open-api.vn/api/p/').then(res => setProvinces(res.data));
+        const fetchProvinces = async () => {
+            // Không cần bật loading toàn cục cho API nhỏ này, trừ khi bạn muốn
+            try {
+                const res = await axios.get('https://provinces.open-api.vn/api/p/');
+                setProvinces(res.data);
+            } catch (err) {
+                setError('Không thể tải danh sách tỉnh/thành phố.');
+            }
+        };
+        fetchProvinces();
     }, []);
 
     const handleFormChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -32,26 +45,41 @@ const AddUserPage = () => {
 
     const handleProvinceChange = async (e) => {
         const provinceCode = e.target.options[e.target.selectedIndex].dataset.code;
-        setAddress({ province: e.target.value, district: '', ward: '', streetAddress: address.streetAddress });
+        const provinceName = e.target.value;
+        setAddress({ province: provinceName, district: '', ward: '', streetAddress: address.streetAddress });
+        setDistricts([]);
+        setWards([]);
         if (provinceCode) {
-            const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
-            setDistricts(res.data.districts);
-            setWards([]);
+            try {
+                const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
+                setDistricts(res.data.districts);
+            } catch (err) {
+                console.error("Lỗi khi tải quận/huyện:", err);
+            }
         }
     };
 
     const handleDistrictChange = async (e) => {
         const districtCode = e.target.options[e.target.selectedIndex].dataset.code;
-        setAddress({ ...address, district: e.target.value, ward: '' });
+        const districtName = e.target.value;
+        setAddress({ ...address, district: districtName, ward: '' });
+        setWards([]);
         if (districtCode) {
-            const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
-            setWards(res.data.wards);
+            try {
+                const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
+                setWards(res.data.wards);
+            } catch (err) {
+                console.error("Lỗi khi tải phường/xã:", err);
+            }
         }
     };
 
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            if (avatarPreview) {
+                URL.revokeObjectURL(avatarPreview);
+            }
             setAvatar(file);
             setAvatarPreview(URL.createObjectURL(file));
         }
@@ -59,9 +87,9 @@ const AddUserPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
         setError('');
         setSuccess('');
+        dispatch(showLoading());
 
         const finalFormData = new FormData();
         Object.keys(formData).forEach(key => finalFormData.append(key, formData[key]));
@@ -80,7 +108,7 @@ const AddUserPage = () => {
         } catch (err) {
             setError(err.response?.data?.msg || 'Thêm người dùng thất bại.');
         } finally {
-            setIsSubmitting(false);
+            dispatch(hideLoading());
         }
     };
 
@@ -124,14 +152,14 @@ const AddUserPage = () => {
                         <Card className="card-custom">
                             <Card.Header><Card.Title as="h5">Phân quyền</Card.Title></Card.Header>
                             <Card.Body>
-                                <Form.Select name="role" onChange={handleFormChange}><option value="customer">Customer</option><option value="admin">Admin</option></Form.Select>
+                                <Form.Select name="role" onChange={handleFormChange} value={formData.role}><option value="customer">Customer</option><option value="admin">Admin</option></Form.Select>
                             </Card.Body>
                         </Card>
                     </Col>
                 </Row>
                 <div className="text-end mt-3">
                     <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/users')}>Hủy</Button>
-                    <Button variant="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? <Spinner size="sm" /> : 'Lưu người dùng'}</Button>
+                    <Button variant="primary" type="submit">Lưu người dùng</Button>
                 </div>
             </Form>
         </div>

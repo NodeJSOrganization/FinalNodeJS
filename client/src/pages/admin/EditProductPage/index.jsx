@@ -1,43 +1,44 @@
 // src/pages/admin/EditProductPage/index.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Row, Col, Image, Alert, Spinner, InputGroup } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, Image, Alert } from 'react-bootstrap';
 import { FaBoxes, FaTags, FaImage, FaPlusCircle, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
-// Tái sử dụng CSS từ trang AddProductPage
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
 import '../AddProductPage/AddProductPage.css';
+
+// Hằng số validation, giữ nhất quán với trang AddProductPage
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 
 const EditProductPage = () => {
     const navigate = useNavigate();
     const { id } = useParams();
+    const dispatch = useDispatch();
 
-    // State cho form
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [brand, setBrand] = useState('');
     const [category, setCategory] = useState('');
 
-    // State cho ảnh
-    const [existingImages, setExistingImages] = useState([]); // Ảnh cũ từ server
-    const [newImages, setNewImages] = useState([]); // File ảnh mới
-    const [newImagePreviews, setNewImagePreviews] = useState([]); // Xem trước ảnh mới
-    const [deletedCloudinaryIds, setDeletedCloudinaryIds] = useState([]); // ID ảnh cũ cần xóa
+    const [existingImages, setExistingImages] = useState([]);
+    const [newImages, setNewImages] = useState([]);
+    const [newImagePreviews, setNewImagePreviews] = useState([]);
+    const [deletedCloudinaryIds, setDeletedCloudinaryIds] = useState([]);
 
-    // State cho biến thể
     const [variants, setVariants] = useState([]);
-
-    // State phụ
     const [allBrands, setAllBrands] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [fetchLoading, setFetchLoading] = useState(true);
+
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // Fetch dữ liệu sản phẩm và dữ liệu phụ (brand, category)
     useEffect(() => {
         const fetchData = async () => {
+            dispatch(showLoading());
             try {
                 const [productRes, brandsRes, categoriesRes] = await Promise.all([
                     axios.get(`/api/v1/products/${id}`),
@@ -51,7 +52,6 @@ const EditProductPage = () => {
                 setBrand(productData.brand._id);
                 setCategory(productData.category._id);
                 setExistingImages(productData.images || []);
-                // Thêm imagePreview cho variant để hiển thị ảnh cũ
                 setVariants(productData.variants.map(v => ({ ...v, imagePreview: v.image?.url || '', newImage: null })) || []);
 
                 setAllBrands(brandsRes.data.data);
@@ -60,18 +60,42 @@ const EditProductPage = () => {
             } catch (err) {
                 setError('Không thể tải dữ liệu sản phẩm.');
             } finally {
-                setFetchLoading(false);
+                dispatch(hideLoading());
             }
         };
         fetchData();
-    }, [id]);
+    }, [id, dispatch]);
 
-    // Các hàm xử lý ảnh chính
+    const validateFile = (file) => {
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+            return `Định dạng file không hợp lệ. Vui lòng chỉ chọn file ảnh.`;
+        }
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            return `Kích thước ảnh quá lớn (${(file.size / 1024 / 1024).toFixed(2)}MB). Tối đa là ${MAX_FILE_SIZE_MB}MB.`;
+        }
+        return null;
+    };
+
     const handleNewImagesChange = (e) => {
+        setError('');
         const files = Array.from(e.target.files);
-        const previews = files.map(f => URL.createObjectURL(f));
-        setNewImages(prev => [...prev, ...files]);
-        setNewImagePreviews(prev => [...prev, ...previews]);
+        const validFiles = [];
+        const validPreviews = [];
+
+        for (const file of files) {
+            const errorMessage = validateFile(file);
+            if (errorMessage) {
+                setError(errorMessage);
+                e.target.value = null;
+                return;
+            }
+            validFiles.push(file);
+            validPreviews.push(URL.createObjectURL(file));
+        }
+
+        setNewImages(prev => [...prev, ...validFiles]);
+        setNewImagePreviews(prev => [...prev, ...validPreviews]);
+        e.target.value = null;
     };
 
     const removeNewImage = (index) => {
@@ -86,7 +110,6 @@ const EditProductPage = () => {
         setExistingImages(prev => prev.filter((_, i) => i !== index));
     };
 
-    // Các hàm xử lý biến thể
     const handleVariantChange = (index, event) => {
         const values = [...variants];
         values[index][event.target.name] = event.target.value;
@@ -94,21 +117,28 @@ const EditProductPage = () => {
     };
 
     const handleVariantImageChange = (index, event) => {
+        setError('');
         const file = event.target.files[0];
         if (file) {
+            const errorMessage = validateFile(file);
+            if (errorMessage) {
+                setError(errorMessage);
+                event.target.value = null;
+                return;
+            }
             const newVariants = [...variants];
-            // Xóa ảnh xem trước cũ nếu có
             if (newVariants[index].imagePreview && !newVariants[index].image?.url) {
                 URL.revokeObjectURL(newVariants[index].imagePreview);
             }
-            newVariants[index].newImage = file; // Lưu file mới vào một trường tạm
+            newVariants[index].newImage = file;
             newVariants[index].imagePreview = URL.createObjectURL(file);
             setVariants(newVariants);
         }
+        event.target.value = null;
     };
 
     const addVariant = () => {
-        setVariants([...variants, { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, newImage: null, imagePreview: '' }]);
+        setVariants([...variants, { color: '', performance: '', costPrice: '', sellingPrice: '', image: null, newImage: null, imagePreview: '', sku: '' }]);
     };
 
     const removeVariant = (index) => {
@@ -126,6 +156,7 @@ const EditProductPage = () => {
         e.preventDefault();
         setError('');
         setSuccess('');
+        dispatch(showLoading());
 
         const formData = new FormData();
         formData.append('name', name);
@@ -134,12 +165,10 @@ const EditProductPage = () => {
         formData.append('category', category);
         formData.append('deleted_cloudinary_ids', deletedCloudinaryIds.join(','));
 
-        // Xử lý ảnh chính mới
         newImages.forEach(file => {
             formData.append('new_main_images', file);
         });
 
-        // Xử lý biến thể
         const variantsPayload = variants.map((variant, index) => {
             const variantData = {
                 _id: variant._id,
@@ -148,7 +177,7 @@ const EditProductPage = () => {
                 costPrice: variant.costPrice,
                 sellingPrice: variant.sellingPrice,
                 image: variant.image,
-                sku: variant.sku // ✨ THÊM DÒNG NÀY VÀO ✨
+                sku: variant.sku
             };
             if (variant.newImage) {
                 const imageIdentifier = `new_variant_image_${index}`;
@@ -161,27 +190,22 @@ const EditProductPage = () => {
         formData.append('variants', JSON.stringify(variantsPayload));
 
         try {
-            setLoading(true);
             const token = localStorage.getItem('token');
             const config = { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
-
             await axios.put(`/api/v1/products/${id}`, formData, config);
-
             setSuccess('Cập nhật sản phẩm thành công! Đang chuyển hướng...');
             setTimeout(() => navigate('/admin/products'), 2000);
         } catch (err) {
             setError(err.response?.data?.msg || 'Cập nhật sản phẩm thất bại.');
         } finally {
-            setLoading(false);
+            dispatch(hideLoading());
         }
     };
-
-    if (fetchLoading) return <div className="text-center p-5"><Spinner /></div>;
 
     return (
         <div className="p-4">
             <Form onSubmit={handleSubmit}>
-                {error && <Alert variant="danger">{error}</Alert>}
+                {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
                 {success && <Alert variant="success">{success}</Alert>}
                 <Row>
                     <Col lg={8}>
@@ -203,8 +227,8 @@ const EditProductPage = () => {
                             <Card.Header><Card.Title as="h5"><FaImage /> Hình ảnh sản phẩm</Card.Title></Card.Header>
                             <Card.Body>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Tải ảnh mới</Form.Label>
-                                    <Form.Control type="file" accept="image/*" multiple onChange={handleNewImagesChange} />
+                                    <Form.Label>Tải ảnh mới (tối đa {MAX_FILE_SIZE_MB}MB mỗi ảnh)</Form.Label>
+                                    <Form.Control type="file" accept={ALLOWED_IMAGE_TYPES.join(',')} multiple onChange={handleNewImagesChange} />
                                 </Form.Group>
                                 <p className="text-muted">Ảnh hiện tại:</p>
                                 <div className="main-images-preview-container">
@@ -259,7 +283,7 @@ const EditProductPage = () => {
                                             <Form.Group>
                                                 <Form.Label>Ảnh</Form.Label>
                                                 <Image src={variant.imagePreview || 'https://via.placeholder.com/150'} thumbnail />
-                                                <Form.Control type="file" size="sm" className="mt-2" onChange={e => handleVariantImageChange(index, e)} />
+                                                <Form.Control type="file" size="sm" className="mt-2" accept={ALLOWED_IMAGE_TYPES.join(',')} onChange={e => handleVariantImageChange(index, e)} />
                                             </Form.Group>
                                         </Col>
                                         <Col md={10}>
@@ -271,15 +295,15 @@ const EditProductPage = () => {
                                                             type="text"
                                                             name="sku"
                                                             placeholder="VD: LNV-LOQ-XANH-32"
-                                                            value={variant.sku || ''} // Hiển thị giá trị sku hoặc chuỗi rỗng
+                                                            value={variant.sku || ''}
                                                             onChange={e => handleVariantChange(index, e)}
                                                         />
                                                     </Form.Group>
                                                 </Col>
                                                 <Col md={6}><Form.Group><Form.Label>Màu sắc</Form.Label><Form.Control type="text" name="color" value={variant.color} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
-                                                <Col md={6}><Form.Group><Form.Label>Hiệu năng</Form.Label><Form.Control type="text" name="performance" value={variant.performance} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
-                                                <Col md={6} className="mt-3"><Form.Group><Form.Label>Giá nhập</Form.Label><Form.Control type="number" name="costPrice" value={variant.costPrice} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
-                                                <Col md={6} className="mt-3"><Form.Group><Form.Label>Giá bán</Form.Label><Form.Control type="number" name="sellingPrice" value={variant.sellingPrice} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
+                                                <Col md={6}><Form.Group className="mt-3"><Form.Label>Hiệu năng</Form.Label><Form.Control type="text" name="performance" value={variant.performance} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
+                                                <Col md={6}><Form.Group className="mt-3"><Form.Label>Giá nhập</Form.Label><Form.Control type="number" name="costPrice" value={variant.costPrice} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
+                                                <Col md={6}><Form.Group className="mt-3"><Form.Label>Giá bán</Form.Label><Form.Control type="number" name="sellingPrice" value={variant.sellingPrice} onChange={e => handleVariantChange(index, e)} required /></Form.Group></Col>
                                             </Row>
                                             {variants.length > 1 && <Button variant="outline-danger" size="sm" className="mt-3" onClick={() => removeVariant(index)}><FaTrash /> Xóa</Button>}
                                         </Col>
@@ -293,8 +317,8 @@ const EditProductPage = () => {
 
                 <div className="d-flex justify-content-end">
                     <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/products')}>Hủy</Button>
-                    <Button variant="primary" type="submit" disabled={loading}>
-                        {loading ? <><Spinner size="sm" /> Đang lưu...</> : 'Lưu thay đổi'}
+                    <Button variant="primary" type="submit">
+                        Lưu thay đổi
                     </Button>
                 </div>
             </Form>

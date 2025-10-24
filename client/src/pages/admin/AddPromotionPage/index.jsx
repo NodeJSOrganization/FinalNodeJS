@@ -1,19 +1,21 @@
-// --- START OF FILE src/pages/admin/AddPromotionPage/index.jsx ---
+// src/pages/admin/AddPromotionPage/index.jsx
 
 import React, { useState, useEffect, forwardRef } from 'react';
-import { Form, Button, Card, Row, Col, Alert, Spinner, InputGroup } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, Alert, InputGroup } from 'react-bootstrap';
 import Select from 'react-select';
 import { FaBullhorn, FaInfoCircle, FaCalendarAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DatePicker from 'react-datepicker';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
 
 const CustomDateInput = forwardRef(({ value, onClick, placeholder }, ref) => (
     <InputGroup onClick={onClick} ref={ref}>
         <Form.Control
             value={value}
             placeholder={placeholder}
-            readOnly // Ngăn người dùng gõ tay, chỉ cho phép chọn từ lịch
+            readOnly
         />
         <InputGroup.Text>
             <FaCalendarAlt />
@@ -23,10 +25,9 @@ const CustomDateInput = forwardRef(({ value, onClick, placeholder }, ref) => (
 
 const AddPromotionPage = () => {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
-    // State cho các trường của form
     const [name, setName] = useState('');
-    // ✨ ĐÃ SỬA LỖI CÚ PHÁP TẠI ĐÂY (dấu _ thành dấu =) ✨
     const [appliedProducts, setAppliedProducts] = useState([]);
     const [type, setType] = useState('percent');
     const [value, setValue] = useState('');
@@ -36,17 +37,15 @@ const AddPromotionPage = () => {
     const [endDate, setEndDate] = useState(null);
 
     const [productOptions, setProductOptions] = useState([]);
-    const [loadingProducts, setLoadingProducts] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [fetchError, setFetchError] = useState('');
 
     useEffect(() => {
         const fetchProducts = async () => {
+            dispatch(showLoading());
             try {
                 setFetchError('');
-                setLoadingProducts(true);
                 const response = await axios.get('/api/v1/products');
                 const options = response.data.data.map(product => ({
                     value: product._id,
@@ -57,11 +56,11 @@ const AddPromotionPage = () => {
                 setFetchError('Không thể tải danh sách sản phẩm. Vui lòng thử lại.');
                 console.error(err);
             } finally {
-                setLoadingProducts(false);
+                dispatch(hideLoading());
             }
         };
         fetchProducts();
-    }, []);
+    }, [dispatch]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -78,6 +77,8 @@ const AddPromotionPage = () => {
             return setError('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.');
         }
 
+        dispatch(showLoading());
+
         const promotionData = {
             name,
             appliedProducts: appliedProducts.map(p => p.value),
@@ -89,7 +90,6 @@ const AddPromotionPage = () => {
         };
 
         try {
-            setIsSubmitting(true);
             const token = localStorage.getItem('token');
             const config = {
                 headers: {
@@ -104,7 +104,7 @@ const AddPromotionPage = () => {
             const message = err.response?.data?.msg || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
             setError(message);
         } finally {
-            setIsSubmitting(false);
+            dispatch(hideLoading());
         }
     };
 
@@ -128,9 +128,7 @@ const AddPromotionPage = () => {
 
                                 <Form.Group className="mb-3" controlId="selectProducts">
                                     <Form.Label>Áp dụng cho sản phẩm</Form.Label>
-                                    {loadingProducts ? (
-                                        <div className="text-center p-3"><Spinner animation="border" /></div>
-                                    ) : fetchError ? (
+                                    {fetchError ? (
                                         <Alert variant="danger">{fetchError}</Alert>
                                     ) : (
                                         <Select
@@ -140,6 +138,7 @@ const AddPromotionPage = () => {
                                             value={appliedProducts}
                                             onChange={setAppliedProducts}
                                             noOptionsMessage={() => "Không tìm thấy sản phẩm"}
+                                            isLoading={productOptions.length === 0 && !fetchError}
                                         />
                                     )}
                                 </Form.Group>
@@ -207,8 +206,8 @@ const AddPromotionPage = () => {
                             </Card.Body>
                             <Card.Footer className="text-end">
                                 <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/promotions')}>Hủy</Button>
-                                <Button variant="primary" type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? <><Spinner as="span" animation="border" size="sm" /> Đang lưu...</> : 'Lưu chương trình'}
+                                <Button variant="primary" type="submit">
+                                    Lưu chương trình
                                 </Button>
                             </Card.Footer>
                         </Card>

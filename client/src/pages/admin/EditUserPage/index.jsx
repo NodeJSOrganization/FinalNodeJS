@@ -1,18 +1,23 @@
+// src/pages/admin/EditUserPage.jsx
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { Form, Button, Card, Row, Col, Alert, Spinner, Image } from 'react-bootstrap';
+import { Form, Button, Card, Row, Col, Alert, Image } from 'react-bootstrap';
 import { FaUserEdit } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
 
 const EditUserPage = () => {
     const navigate = useNavigate();
     const { id } = useParams();
+    const dispatch = useDispatch();
 
     // Form states
     const [formData, setFormData] = useState({ fullName: '', email: '', phoneNumber: '', gender: '', role: '' });
     const [address, setAddress] = useState({ province: '', district: '', ward: '', streetAddress: '' });
-    const [avatar, setAvatar] = useState(null); // File object for new avatar
-    const [avatarPreview, setAvatarPreview] = useState(''); // URL for image preview
+    const [avatar, setAvatar] = useState(null);
+    const [avatarPreview, setAvatarPreview] = useState('');
 
     // Address API states
     const [provinces, setProvinces] = useState([]);
@@ -20,12 +25,11 @@ const EditUserPage = () => {
     const [wards, setWards] = useState([]);
 
     // UI states
-    const [loading, setLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
     const fetchUserData = useCallback(async () => {
+        dispatch(showLoading());
         try {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -49,7 +53,6 @@ const EditUserPage = () => {
             setAvatarPreview(userData.avatar?.url);
             setProvinces(allProvinces);
 
-            // Logic to pre-fill address dropdowns
             if (userData.address?.province) {
                 const provinceData = allProvinces.find(p => p.name === userData.address.province);
                 if (provinceData) {
@@ -69,9 +72,9 @@ const EditUserPage = () => {
         } catch (err) {
             setError('Không thể tải dữ liệu người dùng. Vui lòng thử lại.');
         } finally {
-            setLoading(false);
+            dispatch(hideLoading());
         }
-    }, [id]);
+    }, [id, dispatch]);
 
     useEffect(() => {
         fetchUserData();
@@ -86,8 +89,12 @@ const EditUserPage = () => {
         setDistricts([]);
         setWards([]);
         if (provinceCode) {
-            const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
-            setDistricts(res.data.districts);
+            try {
+                const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
+                setDistricts(res.data.districts);
+            } catch (err) {
+                console.error("Lỗi khi tải quận/huyện", err);
+            }
         }
     };
 
@@ -96,14 +103,21 @@ const EditUserPage = () => {
         setAddress({ ...address, district: e.target.value, ward: '' });
         setWards([]);
         if (districtCode) {
-            const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
-            setWards(res.data.wards);
+            try {
+                const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
+                setWards(res.data.wards);
+            } catch (err) {
+                 console.error("Lỗi khi tải phường/xã", err);
+            }
         }
     };
 
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            if (avatarPreview) {
+                URL.revokeObjectURL(avatarPreview);
+            }
             setAvatar(file);
             setAvatarPreview(URL.createObjectURL(file));
         }
@@ -111,9 +125,9 @@ const EditUserPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
         setError('');
         setSuccess('');
+        dispatch(showLoading());
 
         const finalFormData = new FormData();
         Object.keys(formData).forEach(key => finalFormData.append(key, formData[key]));
@@ -132,13 +146,9 @@ const EditUserPage = () => {
         } catch (err) {
             setError(err.response?.data?.msg || 'Cập nhật thất bại.');
         } finally {
-            setIsSubmitting(false);
+            dispatch(hideLoading());
         }
     };
-
-    if (loading) {
-        return <div className="d-flex justify-content-center align-items-center" style={{ height: '70vh' }}><Spinner /></div>;
-    }
 
     return (
         <div className="p-4">
@@ -148,7 +158,7 @@ const EditUserPage = () => {
                         <Card className="card-custom">
                             <Card.Header><Card.Title as="h4"><FaUserEdit className="me-2" />Chỉnh sửa Người dùng</Card.Title></Card.Header>
                             <Card.Body>
-                                {error && <Alert variant="danger">{error}</Alert>}
+                                {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
                                 {success && <Alert variant="success">{success}</Alert>}
                                 <Row>
                                     <Col md={6}><Form.Group className="mb-3"><Form.Label>Họ và Tên</Form.Label><Form.Control type="text" name="fullName" value={formData.fullName} onChange={handleFormChange} required /></Form.Group></Col>
@@ -189,7 +199,7 @@ const EditUserPage = () => {
                 </Row>
                 <div className="text-end mt-3">
                     <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/users')}>Hủy</Button>
-                    <Button variant="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? <><Spinner as="span" size="sm" /> Đang cập nhật...</> : 'Lưu thay đổi'}</Button>
+                    <Button variant="primary" type="submit">Lưu thay đổi</Button>
                 </div>
             </Form>
         </div>
