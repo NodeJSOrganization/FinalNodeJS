@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -11,143 +11,182 @@ import {
   Modal,
   ListGroup,
   Badge,
+  Spinner,
 } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { FaShoppingCart } from "react-icons/fa";
+
+// Import đầy đủ các actions và thunks từ Redux
 import {
+  syncCart,
+  updateItemQuantity,
+  removeItem as removeItemThunk,
   toggleAllItems,
   toggleItem,
-  changeQty,
-  removeItem,
-  removeSelected,
   applyVoucher,
   clearVoucher,
   toggleUsePoints,
+  fetchVouchers,
 } from "../../../features/cart/cartReducer";
-import { FaShoppingCart } from "react-icons/fa";
 
-// ===== Helpers =====
+import { createOrderSummary } from "../../../features/order/orderReducer";
+
+// Helper định dạng tiền tệ
 const currency = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     Math.max(0, Number(v) || 0)
   );
 
-// Điểm thưởng: mặc định 1 điểm = 1,000đ
 const POINT_TO_VND = 1000;
 
-// ===== Demo data =====
-const DEMO_VOUCHERS = [
-  {
-    code: "SAVE10",
-    discountType: "PERCENT",
-    discountValue: 10,
-    description: "Giảm 10% cho đơn hàng đầu tiên của bạn.",
-  },
-  {
-    code: "LAP50K",
-    discountType: "AMOUNT",
-    discountValue: 50000,
-    description: "Giảm 50.000đ cho đơn hàng từ 1.000.000đ.",
-  },
-];
-
 export default function CartPage() {
-  const [keyword, setKeyword] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const { cartItems, selectedVoucher, usePoints } = useSelector(
-    (state) => state.cart
-  );
+  // Lấy state từ Redux
+  const { cartItems, selectedVoucher, usePoints, vouchers, isLoading } =
+    useSelector((state) => state.cart);
+  const { user } = useSelector((state) => state.auth);
 
+  // State local
+  const [keyword, setKeyword] = useState("");
   const [voucherModal, setVoucherModal] = useState(false);
-  const [vouchers] = useState(DEMO_VOUCHERS);
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
-  const [userPoints] = useState(458);
+  const userPoints = user?.loyaltyPoints || 0;
 
+  // useEffect để lấy giỏ hàng, voucher và xử lý "Mua ngay"
+  useEffect(() => {
+    const checkoutVariantId = location.state?.checkoutVariantId;
+    dispatch(syncCart())
+      .unwrap()
+      .then(() => {
+        if (checkoutVariantId) {
+          dispatch(toggleAllItems(false));
+          dispatch(toggleItem({ variantId: checkoutVariantId, checked: true }));
+          navigate(location.pathname, { replace: true, state: {} });
+        }
+      });
+
+    dispatch(fetchVouchers());
+  }, [dispatch, location, navigate]);
+
+  // --- Logic tính toán (useMemo) ---
   const filteredItems = useMemo(() => {
+    if (!cartItems) return [];
     const k = keyword.trim().toLowerCase();
     if (!k) return cartItems;
     return cartItems.filter(
       (x) =>
-        x.name.toLowerCase().includes(k) ||
-        x.variantName.toLowerCase().includes(k)
+        x.variant?.name?.toLowerCase().includes(k) ||
+        x.variant?.variantName?.toLowerCase().includes(k)
     );
   }, [cartItems, keyword]);
 
-  const allChecked = useMemo(() => {
-    return (
-      Array.isArray(cartItems) &&
+  const allChecked = useMemo(
+    () =>
+      cartItems &&
       cartItems.length > 0 &&
-      cartItems.every((x) => x.checked === true)
-    );
-  }, [cartItems]);
-
-  const totalCount = Array.isArray(cartItems) ? cartItems.length : 0;
-  const selectedCount = Array.isArray(cartItems)
-    ? cartItems.filter((x) => x.checked).length
-    : 0;
+      cartItems.every((x) => x.checked === true),
+    [cartItems]
+  );
+  const selectedItems = useMemo(
+    () => (cartItems ? cartItems.filter((x) => x.checked) : []),
+    [cartItems]
+  );
+  const totalCount = cartItems ? cartItems.length : 0;
+  const selectedCount = selectedItems.length;
 
   const selectedSubtotal = useMemo(() => {
-    if (!Array.isArray(cartItems)) return 0;
-    return cartItems
-      .filter((x) => x.checked)
-      .reduce((s, it) => s + it.price * it.quantity, 0);
-  }, [cartItems]);
+    return selectedItems.reduce(
+      (s, it) => s + it.variant.price * it.quantity,
+      0
+    );
+  }, [selectedItems]);
 
   const voucherDiscount = useMemo(() => {
-    if (!selectedVoucher) return 0;
-    if (selectedVoucher.discountType === "AMOUNT") {
-      return Math.min(selectedVoucher.discountValue, selectedSubtotal);
+    if (!selectedVoucher || selectedSubtotal === 0) return 0;
+    if (selectedVoucher.type === "fixed_amount") {
+      return Math.min(selectedVoucher.value, selectedSubtotal);
     }
-    return Math.floor((selectedSubtotal * selectedVoucher.discountValue) / 100);
+    if (selectedVoucher.type === "percent") {
+      return Math.floor((selectedSubtotal * selectedVoucher.value) / 100);
+    }
+    return 0;
   }, [selectedVoucher, selectedSubtotal]);
 
   const pointBalanceVnd = userPoints * POINT_TO_VND;
-  const pointsAppliedVnd = useMemo(() => {
+  const pointsDiscount = useMemo(() => {
     if (!usePoints) return 0;
     const remainAfterVoucher = Math.max(0, selectedSubtotal - voucherDiscount);
     return Math.min(pointBalanceVnd, remainAfterVoucher);
   }, [usePoints, pointBalanceVnd, selectedSubtotal, voucherDiscount]);
 
-  const savings = voucherDiscount + pointsAppliedVnd;
-  const payable = Math.max(0, selectedSubtotal - savings);
+  const savings = voucherDiscount + pointsDiscount;
+  const finalTotal = Math.max(0, selectedSubtotal - savings);
 
-  // Handlers sử dụng dispatch, đã được cập nhật để dùng variantId
+  // --- Handlers ---
   const toggleAll = (checked) => dispatch(toggleAllItems(checked));
   const toggleOne = (variantId, checked) =>
     dispatch(toggleItem({ variantId, checked }));
-  const handleChangeQty = (variantId, delta) =>
-    dispatch(changeQty({ variantId, delta }));
-  const removeOne = (variantId) => dispatch(removeItem(variantId));
-  const handleRemoveSelected = () => dispatch(removeSelected());
-
-  const openVoucher = () => {
-    setVoucherCodeInput("");
-    setVoucherModal(true);
+  const handleChangeQty = (variantId, newQuantity) => {
+    if (newQuantity < 1) return;
+    dispatch(updateItemQuantity({ variantId, quantity: newQuantity }));
   };
+  const removeOne = (variantId) => {
+    if (window.confirm("Bạn có chắc muốn xóa sản phẩm này?")) {
+      dispatch(removeItemThunk(variantId));
+    }
+  };
+  const handleRemoveSelected = () => {
+    if (
+      window.confirm(`Bạn có chắc muốn xóa ${selectedCount} sản phẩm đã chọn?`)
+    ) {
+      const selectedVariantIds = selectedItems.map((item) => item.variant._id);
+      selectedVariantIds.forEach((id) => dispatch(removeItemThunk(id)));
+    }
+  };
+  const openVoucher = () => setVoucherModal(true);
   const closeVoucher = () => setVoucherModal(false);
-
-  const handleApplyVoucher = (v) => {
-    dispatch(applyVoucher(v));
-    setVoucherModal(false);
+  const handleApplyVoucher = (voucher) => {
+    dispatch(applyVoucher(voucher));
+    closeVoucher();
   };
   const handleClearVoucher = () => dispatch(clearVoucher());
-
   const handleApplyVoucherByCode = () => {
-    const found = vouchers.find(
-      (v) => v.code.toLowerCase() === voucherCodeInput.trim().toLowerCase()
-    );
+    const code = voucherCodeInput.trim().toUpperCase();
+    const found = vouchers.find((v) => v.code.toUpperCase() === code);
     if (!found) {
-      alert("Mã voucher không tồn tại trong ví của bạn.");
+      alert("Mã voucher không hợp lệ hoặc không có sẵn.");
       return;
     }
     handleApplyVoucher(found);
   };
-
-  const handleToggleUsePoints = (e) => {
+  const handleToggleUsePoints = (e) =>
     dispatch(toggleUsePoints(e.target.checked));
+
+  const handleProceedToOrder = () => {
+    const summaryData = {
+      orderItems: selectedItems,
+      subtotal: selectedSubtotal,
+      voucherDiscount,
+      pointsDiscount,
+      finalTotal,
+      selectedVoucher,
+      usePoints,
+    };
+    dispatch(createOrderSummary(summaryData));
+    navigate("/order");
   };
+
+  if (isLoading && !cartItems?.length) {
+    return (
+      <Container className="text-center py-5">
+        <Spinner animation="border" />
+      </Container>
+    );
+  }
 
   return (
     <Container className="py-3">
@@ -159,7 +198,6 @@ export default function CartPage() {
           onChange={(e) => setKeyword(e.target.value)}
         />
       </InputGroup>
-
       <div className="d-flex align-items-center gap-3 mb-2">
         <Form.Check
           type="checkbox"
@@ -169,7 +207,6 @@ export default function CartPage() {
           label="Chọn tất cả sản phẩm"
         />
       </div>
-
       <Table
         responsive
         hover
@@ -194,75 +231,82 @@ export default function CartPage() {
           </tr>
         </thead>
         <tbody>
-          {filteredItems.map((it) => (
-            <tr key={it.variantId}>
-              <td>
-                <Form.Check
-                  type="checkbox"
-                  checked={it.checked || false}
-                  onChange={(e) => toggleOne(it.variantId, e.target.checked)}
-                />
-              </td>
-              <td>
-                <Row className="g-2 align-items-center">
-                  <Col xs="auto">
-                    <Image
-                      src={it.image}
-                      rounded
-                      width={72}
-                      height={72}
-                      style={{ objectFit: "contain" }}
-                    />
-                  </Col>
-                  <Col className="text-start">
-                    <div className="fw-semibold">{it.name}</div>
-                    <div className="text-muted small">
-                      Phân loại: {it.variantName}
-                    </div>
-                  </Col>
-                </Row>
-              </td>
-              <td className="text-end">{currency(it.price)}</td>
-              <td className="text-center">
-                <div className="d-inline-flex align-items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline-secondary"
-                    onClick={() => handleChangeQty(it.variantId, -1)}
-                    disabled={it.quantity <= 1}
-                  >
-                    −
-                  </Button>
-                  <Form.Control
-                    value={it.quantity}
-                    readOnly
-                    className="text-center"
-                    style={{ width: 56 }}
+          {filteredItems && filteredItems.length > 0 ? (
+            filteredItems.map((it) => (
+              <tr key={it.variant._id}>
+                <td>
+                  <Form.Check
+                    type="checkbox"
+                    checked={it.checked || false}
+                    onChange={(e) =>
+                      toggleOne(it.variant._id, e.target.checked)
+                    }
                   />
+                </td>
+                <td>
+                  <Row className="g-2 align-items-center">
+                    <Col xs="auto">
+                      <Image
+                        src={it.variant.image || it.product?.images[0]?.url}
+                        rounded
+                        width={72}
+                        height={72}
+                        style={{ objectFit: "contain" }}
+                      />
+                    </Col>
+                    <Col className="text-start">
+                      <div className="fw-semibold">{it.variant.name}</div>
+                      <div className="text-muted small">
+                        Phân loại: {it.variant.variantName}
+                      </div>
+                    </Col>
+                  </Row>
+                </td>
+                <td className="text-end">{currency(it.variant.price)}</td>
+                <td className="text-center">
+                  <div className="d-inline-flex align-items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline-secondary"
+                      onClick={() =>
+                        handleChangeQty(it.variant._id, it.quantity - 1)
+                      }
+                      disabled={it.quantity <= 1}
+                    >
+                      −
+                    </Button>
+                    <Form.Control
+                      value={it.quantity}
+                      readOnly
+                      className="text-center"
+                      style={{ width: 56 }}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline-secondary"
+                      onClick={() =>
+                        handleChangeQty(it.variant._id, it.quantity + 1)
+                      }
+                    >
+                      +
+                    </Button>
+                  </div>
+                </td>
+                <td className="text-end text-danger fw-semibold">
+                  {currency(it.variant.price * it.quantity)}
+                </td>
+                <td className="text-center">
                   <Button
-                    size="sm"
-                    variant="outline-secondary"
-                    onClick={() => handleChangeQty(it.variantId, 1)}
+                    variant="link"
+                    className="text-dark p-0"
+                    onClick={() => removeOne(it.variant._id)}
                   >
-                    +
+                    Xóa
                   </Button>
-                </div>
-              </td>
-              <td className="text-end text-danger fw-semibold">
-                {currency(it.price * it.quantity)}
-              </td>
-              <td className="text-center">
-                <Button
-                  variant="link"
-                  className="text-dark p-0"
-                  onClick={() => removeOne(it.variantId)}
-                >
-                  Xóa
-                </Button>
-              </td>
-            </tr>
-          ))}
-          {filteredItems.length === 0 && (
+                </td>
+              </tr>
+            ))
+          ) : (
             <tr>
               <td colSpan={6} className="text-center py-5">
                 <div className="mb-2">
@@ -274,16 +318,7 @@ export default function CartPage() {
           )}
         </tbody>
       </Table>
-
-      <div
-        className="border-top bg-white p-3"
-        style={{
-          position: "sticky",
-          bottom: 0,
-          zIndex: 1030,
-          boxShadow: "0 -2px 8px rgba(0,0,0,0.06)",
-        }}
-      >
+      <div className="border-top bg-white p-3 sticky-bottom">
         <Row className="g-3 align-items-center">
           <Col md={5} className="d-flex align-items-center gap-3">
             <Form.Check
@@ -302,13 +337,12 @@ export default function CartPage() {
               Xóa ({selectedCount})
             </Button>
           </Col>
-
           <Col md={7}>
             <div className="d-flex align-items-center gap-2 mb-3 justify-content-end">
               <Badge bg="danger">Voucher</Badge>
               {selectedVoucher ? (
                 <>
-                  <span className="small">{selectedVoucher.code}</span>
+                  <span className="small fw-bold">{selectedVoucher.code}</span>
                   <Button
                     size="sm"
                     variant="outline-secondary"
@@ -319,7 +353,7 @@ export default function CartPage() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={handleClearVoucher}
+                    onClick={() => dispatch(clearVoucher())}
                   >
                     Xóa
                   </Button>
@@ -339,7 +373,6 @@ export default function CartPage() {
                 </div>
               )}
             </div>
-
             <div className="d-flex align-items-center gap-2 mb-3 justify-content-end">
               <Form.Check
                 type="checkbox"
@@ -350,26 +383,25 @@ export default function CartPage() {
               <label htmlFor="use-points" className="m-0 small">
                 <Badge bg="warning" text="dark">
                   Điểm thưởng
-                </Badge>{" "}
+                </Badge>
                 <span className="text-muted">
                   (Bạn có {userPoints.toLocaleString()} điểm ~{" "}
                   {currency(pointBalanceVnd)})
                 </span>
               </label>
-              {usePoints && pointsAppliedVnd > 0 && (
+              {pointsDiscount > 0 && (
                 <div className="small text-danger">
-                  -{currency(pointsAppliedVnd)}
+                  -{currency(pointsDiscount)}
                 </div>
               )}
             </div>
-
             <div className="d-flex align-items-center gap-3 justify-content-end">
               <div className="text-end">
                 <div className="small">
                   Tổng thanh toán ({selectedCount} sản phẩm):
                 </div>
                 <div className="fs-5 fw-semibold text-danger">
-                  {currency(payable)}
+                  {currency(finalTotal)}
                 </div>
                 {savings > 0 && (
                   <div className="small text-muted">
@@ -381,7 +413,7 @@ export default function CartPage() {
                 variant="danger"
                 size="lg"
                 disabled={selectedCount === 0}
-                onClick={() => navigate("/order")}
+                onClick={handleProceedToOrder}
               >
                 Mua hàng
               </Button>
@@ -389,7 +421,6 @@ export default function CartPage() {
           </Col>
         </Row>
       </div>
-
       <Modal show={voucherModal} onHide={closeVoucher} centered size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Chọn / Nhập mã voucher</Modal.Title>
@@ -405,37 +436,48 @@ export default function CartPage() {
               Áp dụng
             </Button>
           </InputGroup>
-          <div className="mb-2 fw-semibold">Voucher của bạn</div>
+          <div className="mb-2 fw-semibold">Voucher có sẵn</div>
           <div style={{ maxHeight: 320, overflowY: "auto" }}>
             <ListGroup variant="flush" className="border rounded">
-              {vouchers.map((v) => (
-                <ListGroup.Item key={v.code} className="py-3">
-                  <Row className="g-3 align-items-center">
-                    <Col xs="auto">
-                      <div
-                        className="rounded-2 border bg-light d-flex align-items-center justify-content-center"
-                        style={{ width: 56, height: 56, fontWeight: 700 }}
-                      >
-                        {v.discountType === "PERCENT" ? "%" : "₫"}
-                      </div>
-                    </Col>
-                    <Col>
-                      <Badge bg="dark">{v.code}</Badge>
-                      <div className="text-muted mt-1 small">
-                        {v.description}
-                      </div>
-                    </Col>
-                    <Col xs="auto">
-                      <Button
-                        variant="warning"
-                        onClick={() => handleApplyVoucher(v)}
-                      >
-                        Áp dụng
-                      </Button>
-                    </Col>
-                  </Row>
-                </ListGroup.Item>
-              ))}
+              {vouchers && vouchers.length > 0 ? (
+                vouchers.map((v) => (
+                  <ListGroup.Item key={v._id} className="py-3">
+                    <Row className="g-3 align-items-center">
+                      <Col xs="auto">
+                        <div
+                          className="rounded-2 border bg-light d-flex align-items-center justify-content-center"
+                          style={{
+                            width: 56,
+                            height: 56,
+                            fontWeight: 700,
+                            fontSize: "1.5rem",
+                          }}
+                        >
+                          {v.type === "percent" ? "%" : "₫"}
+                        </div>
+                      </Col>
+                      <Col>
+                        <Badge bg="dark">{v.code}</Badge>
+                        <div className="text-muted mt-1 small">
+                          {v.description}
+                        </div>
+                      </Col>
+                      <Col xs="auto">
+                        <Button
+                          variant="warning"
+                          onClick={() => handleApplyVoucher(v)}
+                        >
+                          Áp dụng
+                        </Button>
+                      </Col>
+                    </Row>
+                  </ListGroup.Item>
+                ))
+              ) : (
+                <p className="p-3 text-center text-muted">
+                  Không có voucher nào có sẵn.
+                </p>
+              )}
             </ListGroup>
           </div>
         </Modal.Body>
@@ -443,4 +485,3 @@ export default function CartPage() {
     </Container>
   );
 }
-// commit

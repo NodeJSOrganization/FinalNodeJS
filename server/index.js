@@ -16,6 +16,8 @@ const promotionRoutes = require("./routes/promotions");
 const userRoutes = require("./routes/users");
 const inventoryRoutes = require("./routes/inventory");
 const reviewRoutes = require("./routes/reviews");
+const cartRoutes = require("./routes/cart");
+const orderRoutes = require("./routes/orders");
 
 const connectDB = async () => {
   try {
@@ -56,6 +58,8 @@ app.use("/api/v1/promotions", promotionRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/inventory", inventoryRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
+app.use("/api/v1/cart", cartRoutes);
+app.use("/api/v1/orders", orderRoutes);
 
 const PORT = process.env.PORT || 5000;
 

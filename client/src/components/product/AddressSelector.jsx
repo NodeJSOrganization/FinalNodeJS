@@ -140,7 +140,7 @@ export default function AddressSelector() {
           </Form.Select>
         </Form.Group>
       </Col>
-      <Col xs={12}>
+      {/* <Col xs={12}>
         <Form.Group>
           <Form.Label>
             Địa chỉ chi tiết (Số nhà, tên đường...){" "}
@@ -154,7 +154,7 @@ export default function AddressSelector() {
             disabled={!shippingInfo.wardCode}
           />
         </Form.Group>
-      </Col>
+      </Col> */}
     </Row>
   );
 }

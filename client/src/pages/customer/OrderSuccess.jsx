@@ -3,8 +3,12 @@ import { Container, Row, Col, Card, Button } from "react-bootstrap";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 
 import { BsCheckCircleFill } from "react-icons/bs";
+import { clearOrderDetails } from "../../../features/order/orderReducer";
+import { clearCart } from "../../../features/cart/cartReducer";
+import { useDispatch } from "react-redux";
 
 export default function OrderSuccessPage() {
+  const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -12,10 +16,13 @@ export default function OrderSuccessPage() {
 
   useEffect(() => {
     if (!orderId) {
-      console.log("Không tìm thấy mã đơn hàng, đang điều hướng về trang chủ.");
-      navigate("/");
+      navigate("/", { replace: true });
+      return;
     }
-  }, [orderId, navigate]);
+
+    dispatch(clearCart());
+    dispatch(clearOrderDetails());
+  }, [dispatch, orderId, navigate]);
 
   if (!orderId) {
     return null;

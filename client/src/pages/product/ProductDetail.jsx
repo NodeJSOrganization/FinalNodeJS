@@ -21,7 +21,11 @@ import {
   getProductFailure,
   clearSelectedProduct,
 } from "../../../features/product/productReducer";
-import { setCartItems } from "../../../features/cart/cartReducer";
+import {
+  setCartItems,
+  toggleAllItems,
+} from "../../../features/cart/cartReducer";
+import { addItem, toggleItem } from "../../../features/cart/cartReducer";
 
 import ProductReviews from "../../components/product/ProductReviews";
 import RelatedProducts from "../../components/product/RelatedProduct";
@@ -198,63 +202,81 @@ const ProductDetail = () => {
   const handleAddVariantToCart = () => {
     if (!currentVariant) return;
 
-    const cartItemToAdd = {
+    // Dữ liệu cần cho API (nếu đã đăng nhập)
+    const apiData = {
       productId: selectedProduct._id,
       variantId: currentVariant._id,
-      name: selectedProduct.name,
-      image: currentVariant.image.url,
-      variantName: `${currentVariant.color} - ${currentVariant.performance}`,
-      price: currentVariant.sellingPrice,
       quantity: 1,
-      checked: false,
     };
 
-    const existingItem = cartItems.find(
-      (item) => item.variantId === cartItemToAdd.variantId
-    );
+    // Dữ liệu đầy đủ cần cho localStorage (nếu là khách)
+    const snapshotData = {
+      productSnapshot: {
+        _id: selectedProduct._id,
+        name: selectedProduct.name,
+        images: selectedProduct.images,
+      },
+      variantSnapshot: {
+        _id: currentVariant._id,
+        // ... các trường khác của variant
+      },
+    };
 
-    const updatedCartItems = existingItem
-      ? cartItems.map((item) =>
-          item.variantId === existingItem.variantId
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      : [...cartItems, cartItemToAdd];
-    dispatch(setCartItems(updatedCartItems));
-    alert(
-      `Đã thêm "${cartItemToAdd.name} - ${cartItemToAdd.variantName}" vào giỏ hàng!`
-    );
+    // Gộp cả hai lại để thunk có thể sử dụng
+    const itemData = { ...apiData, ...snapshotData };
+
+    dispatch(addItem(itemData))
+      .unwrap()
+      .then(() => {
+        alert(`Đã thêm vào giỏ hàng!`);
+      })
+      .catch((errorMsg) => {
+        alert(`Lỗi: ${errorMsg}`);
+      });
   };
 
   const handleBuyNow = () => {
     if (!currentVariant) return;
-    const cartItemToAdd = {
+
+    // Dữ liệu cần cho API (nếu đã đăng nhập)
+    const apiData = {
       productId: selectedProduct._id,
       variantId: currentVariant._id,
-      name: selectedProduct.name,
-      image: currentVariant.image.url,
-      variantName: `${currentVariant.color} - ${currentVariant.performance}`,
-      price: currentVariant.sellingPrice,
       quantity: 1,
-      checked: true,
     };
-    const otherItems = cartItems.map((item) => ({ ...item, checked: false }));
-    const existingItemIndex = otherItems.findIndex(
-      (item) => item.variantId === cartItemToAdd.variantId
-    );
-    let updatedCartItems;
-    if (existingItemIndex !== -1) {
-      updatedCartItems = otherItems.map((item, index) =>
-        index === existingItemIndex
-          ? { ...item, quantity: item.quantity + 1, checked: true }
-          : item
-      );
-    } else {
-      updatedCartItems = [...otherItems, cartItemToAdd];
-    }
-    dispatch(setCartItems(updatedCartItems));
-    navigate("/cart");
+
+    // Dữ liệu đầy đủ cần cho localStorage (nếu là khách)
+    const snapshotData = {
+      productSnapshot: {
+        _id: selectedProduct._id,
+        name: selectedProduct.name,
+        images: selectedProduct.images,
+      },
+      variantSnapshot: {
+        _id: currentVariant._id,
+        name: selectedProduct.name,
+        variantName: `${currentVariant.color} - ${currentVariant.performance}`,
+        image: currentVariant.image?.url,
+        price: currentVariant.sellingPrice,
+        sku: currentVariant.sku,
+      },
+    };
+
+    // Gộp cả hai lại để thunk có thể sử dụng
+    const itemData = { ...apiData, ...snapshotData };
+
+    dispatch(addItem(itemData))
+      .unwrap()
+      .then(() => {
+        // BƯỚC 2: Điều hướng đến trang giỏ hàng và "gửi kèm" thông tin
+        // về variantId cần được tick.
+        navigate("/cart", { state: { checkoutVariantId: currentVariant._id } });
+      })
+      .catch((errorMsg) => {
+        alert(`Lỗi: ${errorMsg}`);
+      });
   };
+
   const getColorImage = (color) => {
     const variantWithColor = selectedProduct.variants.find(
       (v) => v.color === color
