@@ -40,7 +40,6 @@ export default function OrderPage() {
   } = useSelector((state) => state.order);
   const { user, isAuthenticated } = useSelector((state) => state.auth);
 
-  // --- State local cho các form ---
   const [formError, setFormError] = useState("");
   // `customerInfo` chỉ dành cho khách, người đã đăng nhập sẽ dùng thông tin từ `user`
   const [customerInfo, setCustomerInfo] = useState({
@@ -62,6 +61,12 @@ export default function OrderPage() {
   useEffect(() => {
     // Tự động điền thông tin người nhận hàng từ thông tin user đã đăng nhập
     if (isAuthenticated && user) {
+      setCustomerInfo({
+        name: user.fullName || "",
+        email: user.email || "",
+        phone: user.phoneNumber || "",
+      });
+
       setReceiverInfo((prev) => ({
         ...prev,
         receiverName: user.fullName || "",
@@ -157,7 +162,7 @@ export default function OrderPage() {
 
   return (
     <Container className="py-4">
-      <h2 className="mb-4 text-center">Xác nhận Đặt hàng</h2>
+      <h2 className="mb-4 text-center">Xác nhận đặt hàng</h2>
       <Form onSubmit={handleProceedToPayment}>
         <Row className="g-4">
           <Col md={7}>
@@ -165,61 +170,47 @@ export default function OrderPage() {
             <Card className="mb-4 shadow-sm">
               <Card.Header as="h5">Thông tin khách hàng</Card.Header>
               <Card.Body>
-                {/* HIỂN THỊ THÔNG TIN USER NẾU ĐÃ ĐĂNG NHẬP */}
-                {isAuthenticated && user ? (
-                  <div>
-                    <p>
-                      <strong>Họ và tên:</strong> {user.fullName}
-                    </p>
-                    <p>
-                      <strong>Email:</strong> {user.email}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Số điện thoại:</strong>{" "}
-                      {user.phoneNumber || "Chưa cập nhật"}
-                    </p>
-                  </div>
-                ) : (
-                  // HIỂN THỊ FORM NẾU LÀ KHÁCH
-                  <>
-                    <Form.Group className="mb-3">
-                      <Form.Label>
-                        Họ và tên <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="name"
-                        value={customerInfo.name}
-                        onChange={handleCustomerInfoChange}
-                        required
-                      />
-                    </Form.Group>
-                    <Form.Group className="mb-3">
-                      <Form.Label>
-                        Email <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="email"
-                        name="email"
-                        value={customerInfo.email}
-                        onChange={handleCustomerInfoChange}
-                        required
-                      />
-                    </Form.Group>
-                    <Form.Group className="mb-3">
-                      <Form.Label>
-                        Số điện thoại <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="tel"
-                        name="phone"
-                        value={customerInfo.phone}
-                        onChange={handleCustomerInfoChange}
-                        required
-                      />
-                    </Form.Group>
-                  </>
-                )}
+                <Form.Group className="mb-3">
+                  <Form.Label>
+                    Họ và tên <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="name"
+                    value={isAuthenticated ? user.fullName : customerInfo.name}
+                    onChange={handleCustomerInfoChange}
+                    readOnly={isAuthenticated}
+                    required
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>
+                    Email <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Control
+                    type="email"
+                    name="email"
+                    value={isAuthenticated ? user.email : customerInfo.email}
+                    onChange={handleCustomerInfoChange}
+                    readOnly={isAuthenticated}
+                    required
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>
+                    Số điện thoại <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Control
+                    type="tel"
+                    name="phone"
+                    value={
+                      isAuthenticated ? user.phoneNumber : customerInfo.phone
+                    }
+                    onChange={handleCustomerInfoChange}
+                    readOnly={isAuthenticated}
+                    required
+                  />
+                </Form.Group>
               </Card.Body>
             </Card>
 

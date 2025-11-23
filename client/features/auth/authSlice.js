@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import { syncCart } from "../cart/cartReducer";
+import { syncCart, clearCart } from "../cart/cartReducer";
 
 const user = JSON.parse(localStorage.getItem("user"));
 const token = localStorage.getItem("token");
@@ -8,6 +8,7 @@ const token = localStorage.getItem("token");
 const initialState = {
   user: user ? user : null,
   token: token ? token : null,
+  isAuthenticated: !!(user && token),
   isError: false,
   isSuccess: false,
   isLoading: false,
@@ -52,10 +53,10 @@ export const authSlice = createSlice({
       state.isSuccess = false;
       state.isError = false;
       state.message = "";
+      state.isAuthenticated = false;
     },
     updateUserInState: (state, action) => {
       state.user = action.payload;
-      // Cập nhật lại localStorage
       localStorage.setItem("user", JSON.stringify(action.payload));
     },
   },
@@ -73,12 +74,14 @@ export const authSlice = createSlice({
         state.isSuccess = true;
         state.isError = false;
         state.message = "";
+        state.isAuthenticated = true;
         state.user = action.payload.data; // Cập nhật user từ payload trả về
         state.token = action.payload.token; // Cập nhật token
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
+        state.isAuthenticated = false;
         state.message = action.payload; // Lấy thông báo lỗi từ payload
         state.user = null;
         state.token = null;
