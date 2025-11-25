@@ -2,8 +2,15 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
 dotenv.config();
+
+app.use(cors({
+  origin: 'http://localhost:5173', // hoặc 3000, tuỳ FE
+  credentials: true,               // nếu sau này dùng cookie
+}));
+
 
 const authRoutes = require('./routes/auth');
 const categoryRoutes = require('./routes/categories');

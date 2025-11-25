@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+
+import { updateMe } from "../../../api/accountApi"; // chỉnh path cho đúng
 import { Row, Col, Button, Form, Image, InputGroup } from "react-bootstrap";
 import AccountProfileEdit from "./AccountProfileEdit/index.jsx";
+import { updateUserInState } from "../../../../features/auth/authSlice.js"; // chỉnh path cho đúng
 
 function getInitials(name = "") {
   return name
@@ -11,14 +15,14 @@ function getInitials(name = "") {
     .join("");
 }
 
-const initialProfile = {
+const emptyProfile = {
   avatarUrl: "",
-  fullName: "Nguyễn Văn A",
-  email: "nguyenvana@example.com",
-  phone: "0901234567",
-  loyaltyPoints: 1250,
-  dateOfBirth: "", // YYYY-MM-DD
-  gender: "", // "Nam" | "Nữ" | "Khác" | ""
+  fullName: "",
+  email: "",
+  phone: "",
+  loyaltyPoints: 0,
+  dateOfBirth: "",
+  gender: "",
 };
 
 const formatDate = (d) => {
@@ -28,10 +32,33 @@ const formatDate = (d) => {
 };
 
 export default function AccountProfile() {
-  const [profile, setProfile] = useState(initialProfile);
+  const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth); // lấy user từ Redux
+
+  const [profile, setProfile] = useState(emptyProfile);
   const [isEditing, setIsEditing] = useState(false);
 
   const labelCls = "text-start mb-1 fw-semibold";
+
+  // Khi user trong Redux thay đổi -> map sang profile local
+  useEffect(() => {
+    if (!user) return;
+
+    setProfile({
+      avatarUrl: user.avatar?.url || "",
+      fullName: user.fullName || "",
+      email: user.email || "",
+      phone: user.phoneNumber || "",
+      loyaltyPoints: user.loyaltyPoints || 0,
+      dateOfBirth: user.dateOfBirth || "",
+      gender: user.gender || "",
+    });
+  }, [user]);
+
+  // Fallback: nếu vì lý do gì đó chưa có user (AccountLayout chưa load xong)
+  if (!user) {
+    return <div className="account-page">Đang tải hồ sơ...</div>;
+  }
 
   const handleUsePoints = () => {
     alert(`Bạn có ${profile.loyaltyPoints.toLocaleString()} điểm để sử dụng.`);
@@ -76,9 +103,41 @@ export default function AccountProfile() {
         <AccountProfileEdit
           initialProfile={profile}
           onCancel={() => setIsEditing(false)}
-          onSave={(updated) => {
-            setProfile(updated);
-            setIsEditing(false);
+          onSave={async (updated) => {
+            try {
+              // Payload gửi backend
+              const payload = {
+                fullName: updated.fullName,
+                phoneNumber: updated.phone,
+                gender: updated.gender,
+                // nếu backend sau này thêm dateOfBirth, email... thì gửi kèm
+              };
+
+              const res = await updateMe(payload);
+              const updatedUser = res.data.data;
+
+              // Cập nhật Redux (authSlice) -> header, sidebar, layout đều thấy user mới
+              dispatch(updateUserInState(updatedUser));
+
+              // Cập nhật lại profile local để khớp dữ liệu hiển thị
+              setProfile((prev) => ({
+                ...prev,
+                avatarUrl: updatedUser.avatar?.url || prev.avatarUrl,
+                fullName: updatedUser.fullName || updated.fullName,
+                phone: updatedUser.phoneNumber || updated.phone,
+                gender: updatedUser.gender || updated.gender,
+                loyaltyPoints: updatedUser.loyaltyPoints ?? prev.loyaltyPoints,
+                // dateOfBirth... nếu sau này có
+              }));
+
+              setIsEditing(false);
+            } catch (err) {
+              alert(
+                err?.response?.data?.msg ||
+                  err?.response?.data?.message ||
+                  "Cập nhật hồ sơ thất bại."
+              );
+            }
           }}
         />
       </>

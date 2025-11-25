@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import axios from "axios";
+import { changePassword } from "../../../api/accountApi.js";
 import {
   Card,
   Row,
@@ -124,7 +125,6 @@ export default function AccountChangePassword() {
       setError("Hai mật khẩu mới không khớp.");
       return;
     }
-    // Tối thiểu nên đạt 4/5 điều kiện
     const satisfied = Object.values(rules).filter(Boolean).length;
     if (satisfied < 4) {
       setError("Mật khẩu mới chưa đủ mạnh. Vui lòng cải thiện.");
@@ -137,22 +137,31 @@ export default function AccountChangePassword() {
 
     try {
       setLoading(true);
-      const res = await axios.post("/api/account/change-password", {
-        currentPassword, // nhiều backend vẫn yêu cầu gửi lại để an toàn
+      setSuccessMsg("");
+
+      // GỌI API MỚI
+      const res = await changePassword({
+        currentPassword,
         newPassword,
       });
-      if (res?.data?.ok) {
+
+      // tuỳ response backend của bạn, mình giả sử:
+      // { success: true, msg: "Đổi mật khẩu thành công." }
+      if (res?.data?.success) {
         setStep("DONE");
-        setSuccessMsg("Bạn đã đổi mật khẩu thành công.");
-        // Xoá dữ liệu nhạy cảm khỏi state
+        setSuccessMsg(res.data.msg || "Bạn đã đổi mật khẩu thành công.");
         setCurrentPassword("");
         setNewPassword("");
         setConfirmNew("");
       } else {
-        setError("Đổi mật khẩu thất bại. Vui lòng thử lại.");
+        setError(res?.data?.msg || "Đổi mật khẩu thất bại. Vui lòng thử lại.");
       }
     } catch (err) {
-      setError(err?.response?.data?.message || "Có lỗi khi đổi mật khẩu.");
+      setError(
+        err?.response?.data?.msg ||
+          err?.response?.data?.message ||
+          "Có lỗi khi đổi mật khẩu."
+      );
     } finally {
       setLoading(false);
     }

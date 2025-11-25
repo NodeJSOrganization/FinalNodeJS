@@ -27,7 +27,7 @@ const ForgotPassword = () => {
       setLoading(true);
       // --- START: SỬA ENDPOINT TẠI ĐÂY ---
       // Endpoint đúng là '/api/auth/forgotpassword' (không có dấu gạch ngang)
-      await axios.post("/api/auth/forgotpassword", { email }); 
+      await axios.post("/api/auth/forgotpassword", { email });
       // --- END: SỬA ENDPOINT TẠI ĐÂY ---
 
       // Vì lý do bảo mật, luôn hiển thị thông điệp chung
