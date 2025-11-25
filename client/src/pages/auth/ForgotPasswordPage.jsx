@@ -25,13 +25,18 @@ const ForgotPassword = () => {
 
     try {
       setLoading(true);
-      await axios.post("/api/auth/forgot-password", { email });
+      // --- START: SỬA ENDPOINT TẠI ĐÂY ---
+      // Endpoint đúng là '/api/auth/forgotpassword' (không có dấu gạch ngang)
+      await axios.post("/api/auth/forgotpassword", { email }); 
+      // --- END: SỬA ENDPOINT TẠI ĐÂY ---
+
       // Vì lý do bảo mật, luôn hiển thị thông điệp chung
       setSuccess(
         "Nếu email tồn tại trong hệ thống, chúng tôi đã gửi đường link đặt lại mật khẩu tới hộp thư của bạn."
       );
     } catch (err) {
-      // Không tiết lộ email có tồn tại hay không
+      // Không tiết lộ email có tồn tại hay không, vẫn hiển thị thông báo thành công
+      // để tránh việc kẻ xấu dò email trong hệ thống.
       setSuccess(
         "Nếu email tồn tại trong hệ thống, chúng tôi đã gửi đường link đặt lại mật khẩu tới hộp thư của bạn."
       );

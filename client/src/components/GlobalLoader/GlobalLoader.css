@@ -1,0 +1,19 @@
+/* src/components/common/GlobalLoader/GlobalLoader.css */
+.global-loader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6); /* Nền mờ */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; /* Luôn nằm trên cùng */
+  transition: opacity 0.3s ease-in-out;
+}
+
+.global-loader-spinner .spinner-border {
+  width: 4rem;
+  height: 4rem;
+}

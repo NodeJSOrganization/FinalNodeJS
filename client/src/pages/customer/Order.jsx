@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Container,
   Row,
@@ -8,10 +8,16 @@ import {
   Card,
   ListGroup,
   Image,
+  Alert,
 } from "react-bootstrap";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { setCartItems } from "../../../features/cart/cartReducer";
+
+import AddressSelector from "../../components/product/AddressSelector";
+import {
+  fetchProvinces,
+  updateShippingInfo,
+} from "../../../features/order/orderReducer";
 
 const currency = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
@@ -19,66 +25,68 @@ const currency = (v) =>
   );
 const POINT_TO_VND = 1000;
 
-export default function Order() {
+export default function OrderPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { cartItems } = useSelector((state) => state.cart);
 
-  const selectedCartItems = useMemo(
-    () => cartItems.filter((item) => item.checked),
-    [cartItems]
+  const { cartItems, selectedVoucher, usePoints } = useSelector(
+    (state) => state.cart
   );
+  const { currentUser, isAuthenticated } = useSelector((state) => state.user);
+  const { shippingInfo } = useSelector((state) => state.order);
 
-  // Nếu không có sản phẩm nào được chọn, chuyển hướng về giỏ hàng
-  if (selectedCartItems.length === 0) {
-    navigate("/cart");
-    return null; // Không render gì cho đến khi chuyển hướng
-  }
-
-  // State cho thông tin khách hàng
+  const [formError, setFormError] = useState("");
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     email: "",
     phone: "",
   });
 
-  // State cho thông tin nhận hàng
-  const [shippingInfo, setShippingInfo] = useState({
-    receiverName: "",
-    receiverPhone: "",
-    address: "",
-    note: "", // Ghi chú tùy chọn
-  });
+  useEffect(() => {
+    dispatch(fetchProvinces());
+  }, [dispatch]);
 
-  const handleCustomerInfoChange = (e) => {
-    const { name, value } = e.target;
-    setCustomerInfo((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      setCustomerInfo({
+        name: currentUser.name || "",
+        email: currentUser.email || "",
+        phone: currentUser.phone || "",
+      });
+      dispatch(
+        updateShippingInfo({
+          field: "receiverName",
+          value: currentUser.name || "",
+        })
+      );
+      dispatch(
+        updateShippingInfo({
+          field: "receiverPhone",
+          value: currentUser.phone || "",
+        })
+      );
+    }
+  }, [isAuthenticated, currentUser, dispatch]);
 
-  const handleShippingInfoChange = (e) => {
-    const { name, value } = e.target;
-    setShippingInfo((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // ====== Derived values cho tóm tắt đơn hàng (có thể copy từ CartPage) ======
-  // Giả định voucher và điểm thưởng đã được áp dụng ở CartPage và muốn duy trì ở đây.
-  // Trong một hệ thống thực tế, bạn sẽ lưu trạng thái voucher/điểm thưởng vào Redux
-  // hoặc truyền qua URL/local storage nếu muốn giữ lại.
-  // Ở đây, tôi sẽ đơn giản tính toán lại based on selected items.
-
-  // NOTE: Trong một ứng dụng thực tế, bạn nên lưu selectedVoucher và usePoints vào Redux
-  // để chúng persist qua các trang. Hiện tại, tôi sẽ bỏ qua phần này để tập trung vào luồng chính.
-  // Bạn có thể tự thêm logic để lấy voucher/points từ Redux state nếu đã lưu.
-
-  const userPoints = 458; // ví dụ: 458 điểm ~ 458.000đ
-  const usePoints = false; // Mặc định không sử dụng điểm ở trang Order nếu không có trạng thái từ Cart
-  const selectedVoucher = null; // Mặc định không có voucher nếu không có trạng thái từ Cart
-
-  const selectedSubtotal = useMemo(
-    () => selectedCartItems.reduce((s, it) => s + it.price * it.qty, 0),
-    [selectedCartItems]
+  const selectedCartItems = useMemo(
+    () => cartItems.filter((item) => item.checked),
+    [cartItems]
   );
 
+  useEffect(() => {
+    if (selectedCartItems.length === 0) {
+      navigate("/cart", {
+        replace: true,
+        state: { message: "Vui lòng chọn sản phẩm để tiến hành đặt hàng." },
+      });
+    }
+  }, []);
+
+  const [userPoints] = useState(458);
+  const selectedSubtotal = useMemo(
+    () => selectedCartItems.reduce((s, it) => s + it.price * it.quantity, 0),
+    [selectedCartItems]
+  );
   const voucherDiscount = useMemo(() => {
     if (!selectedVoucher) return 0;
     if (selectedVoucher.discountType === "AMOUNT") {
@@ -86,61 +94,71 @@ export default function Order() {
     }
     return Math.floor((selectedSubtotal * selectedVoucher.discountValue) / 100);
   }, [selectedVoucher, selectedSubtotal]);
-
   const pointBalanceVnd = userPoints * POINT_TO_VND;
   const pointsAppliedVnd = useMemo(() => {
     if (!usePoints) return 0;
     const remainAfterVoucher = Math.max(0, selectedSubtotal - voucherDiscount);
     return Math.min(pointBalanceVnd, remainAfterVoucher);
   }, [usePoints, pointBalanceVnd, selectedSubtotal, voucherDiscount]);
-
   const savings = voucherDiscount + pointsAppliedVnd;
   const payable = Math.max(0, selectedSubtotal - savings);
 
-  const handlePlaceOrder = (e) => {
-    e.preventDefault();
+  const handleCustomerInfoChange = (e) => {
+    const { name, value } = e.target;
+    setCustomerInfo((prev) => ({ ...prev, [name]: value }));
+  };
 
+  const handleDirectShippingInfoChange = (e) => {
+    const { name, value } = e.target;
+    dispatch(updateShippingInfo({ field: name, value }));
+  };
+
+  const handleProceedToPayment = (e) => {
+    e.preventDefault();
     if (
-      !customerInfo.name ||
-      !customerInfo.email ||
-      !customerInfo.phone ||
-      !shippingInfo.receiverName ||
-      !shippingInfo.receiverPhone ||
-      !shippingInfo.address
+      !customerInfo.name.trim() ||
+      !customerInfo.email.trim() ||
+      !customerInfo.phone.trim() ||
+      !shippingInfo.receiverName.trim() ||
+      !shippingInfo.receiverPhone.trim() ||
+      !shippingInfo.provinceCode ||
+      !shippingInfo.districtCode ||
+      !shippingInfo.wardCode ||
+      !shippingInfo.detail.trim()
     ) {
-      alert("Vui lòng điền đầy đủ thông tin khách hàng và nhận hàng.");
+      setFormError("Vui lòng điền đầy đủ các thông tin bắt buộc (*).");
+      window.scrollTo(0, 0);
       return;
     }
+    setFormError("");
 
-    const remainingCartItems = cartItems.filter(
-      (item) => !selectedCartItems.includes(item)
-    );
-    dispatch(setCartItems(remainingCartItems));
+    const fullAddress = `${shippingInfo.detail}, ${shippingInfo.wardName}, ${shippingInfo.districtName}, ${shippingInfo.provinceName}`;
 
     navigate("/payment", {
       state: {
         orderItems: selectedCartItems,
         customerInfo,
-        shippingInfo,
-        payable,
+        shippingInfo: { ...shippingInfo, fullAddress },
+        subtotal: selectedSubtotal,
         savings,
+        payable,
       },
     });
   };
 
+  if (selectedCartItems.length === 0) return null;
+
   return (
     <Container className="py-4">
       <h2 className="mb-4 text-center">Xác nhận Đặt hàng</h2>
-
-      <Form onSubmit={handlePlaceOrder}>
-        <Row>
+      <Form onSubmit={handleProceedToPayment}>
+        <Row className="g-4">
           <Col md={7}>
+            {formError && <Alert variant="danger">{formError}</Alert>}
             <Card className="mb-4 shadow-sm">
-              <Card.Header className="fw-semibold">
-                Thông tin khách hàng
-              </Card.Header>
+              <Card.Header as="h5">Thông tin khách hàng</Card.Header>
               <Card.Body>
-                <Form.Group className="mb-3" controlId="customerName">
+                <Form.Group className="mb-3">
                   <Form.Label>
                     Họ và tên <span className="text-danger">*</span>
                   </Form.Label>
@@ -149,11 +167,9 @@ export default function Order() {
                     name="name"
                     value={customerInfo.name}
                     onChange={handleCustomerInfoChange}
-                    placeholder="Nguyễn Văn A"
-                    required
                   />
                 </Form.Group>
-                <Form.Group className="mb-3" controlId="customerEmail">
+                <Form.Group className="mb-3">
                   <Form.Label>
                     Email <span className="text-danger">*</span>
                   </Form.Label>
@@ -162,11 +178,9 @@ export default function Order() {
                     name="email"
                     value={customerInfo.email}
                     onChange={handleCustomerInfoChange}
-                    placeholder="email@example.com"
-                    required
                   />
                 </Form.Group>
-                <Form.Group className="mb-3" controlId="customerPhone">
+                <Form.Group className="mb-3">
                   <Form.Label>
                     Số điện thoại <span className="text-danger">*</span>
                   </Form.Label>
@@ -175,19 +189,15 @@ export default function Order() {
                     name="phone"
                     value={customerInfo.phone}
                     onChange={handleCustomerInfoChange}
-                    placeholder="0123456789"
-                    required
                   />
                 </Form.Group>
               </Card.Body>
             </Card>
 
             <Card className="mb-4 shadow-sm">
-              <Card.Header className="fw-semibold">
-                Thông tin nhận hàng
-              </Card.Header>
+              <Card.Header as="h5">Thông tin nhận hàng</Card.Header>
               <Card.Body>
-                <Form.Group className="mb-3" controlId="receiverName">
+                <Form.Group className="mb-3">
                   <Form.Label>
                     Tên người nhận <span className="text-danger">*</span>
                   </Form.Label>
@@ -195,12 +205,10 @@ export default function Order() {
                     type="text"
                     name="receiverName"
                     value={shippingInfo.receiverName}
-                    onChange={handleShippingInfoChange}
-                    placeholder="Nguyễn Văn B"
-                    required
+                    onChange={handleDirectShippingInfoChange}
                   />
                 </Form.Group>
-                <Form.Group className="mb-3" controlId="receiverPhone">
+                <Form.Group className="mb-3">
                   <Form.Label>
                     Số điện thoại nhận hàng{" "}
                     <span className="text-danger">*</span>
@@ -209,34 +217,21 @@ export default function Order() {
                     type="tel"
                     name="receiverPhone"
                     value={shippingInfo.receiverPhone}
-                    onChange={handleShippingInfoChange}
-                    placeholder="0987654321"
-                    required
+                    onChange={handleDirectShippingInfoChange}
                   />
                 </Form.Group>
-                <Form.Group className="mb-3" controlId="shippingAddress">
-                  <Form.Label>
-                    Địa chỉ nhận hàng <span className="text-danger">*</span>
-                  </Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    name="address"
-                    value={shippingInfo.address}
-                    onChange={handleShippingInfoChange}
-                    placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
-                    required
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3" controlId="shippingNote">
+
+                {/* Component chọn địa chỉ chuyên dụng */}
+                <AddressSelector />
+
+                <Form.Group className="mt-3">
                   <Form.Label>Ghi chú (tùy chọn)</Form.Label>
                   <Form.Control
                     as="textarea"
                     rows={2}
                     name="note"
                     value={shippingInfo.note}
-                    onChange={handleShippingInfoChange}
-                    placeholder="Ví dụ: Giao hàng giờ hành chính, gọi trước khi giao..."
+                    onChange={handleDirectShippingInfoChange}
                   />
                 </Form.Group>
               </Card.Body>
@@ -244,74 +239,62 @@ export default function Order() {
           </Col>
 
           <Col md={5}>
-            <Card className="mb-4 shadow-sm">
-              <Card.Header className="fw-semibold">
+            <Card className="mb-4 shadow-sm sticky-top" style={{ top: "20px" }}>
+              <Card.Header as="h5">
                 Sản phẩm đã chọn ({selectedCartItems.length})
               </Card.Header>
-              <ListGroup variant="flush">
+              <ListGroup
+                variant="flush"
+                style={{ maxHeight: "300px", overflowY: "auto" }}
+              >
                 {selectedCartItems.map((item) => (
-                  <ListGroup.Item key={item.id}>
-                    <Row className="align-items-center">
-                      <Col xs={3}>
-                        <Image src={item.image} fluid rounded />
-                      </Col>
-                      <Col xs={6}>
-                        <div className="fw-semibold">{item.name}</div>
-                        <div className="text-muted small">
-                          {item.variant} x {item.qty}
-                        </div>
-                      </Col>
-                      <Col xs={3} className="text-end">
-                        <span className="fw-semibold">
-                          {currency(item.price * item.qty)}
-                        </span>
-                      </Col>
-                    </Row>
+                  <ListGroup.Item
+                    key={item.variantId}
+                    className="d-flex align-items-center"
+                  >
+                    <Image
+                      src={item.image}
+                      style={{
+                        width: "60px",
+                        height: "60px",
+                        objectFit: "cover",
+                      }}
+                      rounded
+                    />
+                    <div className="ms-3 flex-grow-1">
+                      <div className="fw-semibold">{item.name}</div>
+                      <div className="text-muted small">
+                        Phân loại: {item.variantName}
+                      </div>
+                      <div className="text-muted small">
+                        Số lượng: {item.quantity}
+                      </div>
+                    </div>
+                    <div className="fw-semibold">
+                      {currency(item.price * item.quantity)}
+                    </div>
                   </ListGroup.Item>
                 ))}
               </ListGroup>
-            </Card>
-
-            <Card className="mb-4 shadow-sm">
-              <Card.Header className="fw-semibold">
-                Tóm tắt đơn hàng
-              </Card.Header>
               <Card.Body>
                 <div className="d-flex justify-content-between mb-2">
-                  <span>
-                    Tổng tiền hàng ({selectedCartItems.length} sản phẩm)
-                  </span>
+                  <span>Tạm tính</span>
                   <span>{currency(selectedSubtotal)}</span>
                 </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span>Voucher giảm giá</span>
-                  <span className="text-danger">
-                    -{currency(voucherDiscount)}
-                  </span>
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span>Số điểm thưởng đã dùng</span>
-                  <span className="text-danger">
-                    -{currency(pointsAppliedVnd)}
-                  </span>
-                </div>
+                {savings > 0 && (
+                  <div className="d-flex justify-content-between mb-2 text-danger">
+                    <span>Giảm giá</span>
+                    <span>-{currency(savings)}</span>
+                  </div>
+                )}
                 <hr />
                 <div className="d-flex justify-content-between fw-semibold fs-5 mb-3">
-                  <span>Tổng cộng phải trả</span>
+                  <span>Tổng cộng</span>
                   <span className="text-danger">{currency(payable)}</span>
                 </div>
-                <Button
-                  variant="danger"
-                  type="submit"
-                  className="w-100 py-2"
-                  disabled={selectedCartItems.length === 0}
-                >
+                <Button variant="danger" type="submit" className="w-100 py-2">
                   Tiến hành Thanh toán
                 </Button>
-                <div className="text-center text-muted small mt-2">
-                  Bằng cách đặt hàng, bạn đồng ý với Điều khoản và Điều kiện của
-                  chúng tôi.
-                </div>
               </Card.Body>
             </Card>
           </Col>

@@ -1,38 +1,111 @@
 // src/pages/admin/AddPromotionPage/index.jsx
-import React, { useState } from 'react';
-import { Form, Button, Card, Row, Col, InputGroup, Alert } from 'react-bootstrap';
-import Select from 'react-select'; // ✨ IMPORT THƯ VIỆN MỚI ✨
-import { FaBullhorn, FaPercent, FaCalendarAlt, FaInfoCircle } from 'react-icons/fa';
-import { mockProducts } from '../../../data/mockData'; // ✨ LẤY DANH SÁCH SẢN PHẨM ✨
+
+import React, { useState, useEffect, forwardRef } from 'react';
+import { Form, Button, Card, Row, Col, Alert, InputGroup } from 'react-bootstrap';
+import Select from 'react-select';
+import { FaBullhorn, FaInfoCircle, FaCalendarAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import DatePicker from 'react-datepicker';
+import { useDispatch } from 'react-redux';
+import { showLoading, hideLoading } from '../../../../features/ui/uiSlice';
+
+const CustomDateInput = forwardRef(({ value, onClick, placeholder }, ref) => (
+    <InputGroup onClick={onClick} ref={ref}>
+        <Form.Control
+            value={value}
+            placeholder={placeholder}
+            readOnly
+        />
+        <InputGroup.Text>
+            <FaCalendarAlt />
+        </InputGroup.Text>
+    </InputGroup>
+));
 
 const AddPromotionPage = () => {
-    // State cho các trường của form
-    const [promoName, setPromoName] = useState('');
-    const [selectedProducts, setSelectedProducts] = useState([]); // ✨ STATE MỚI: Lưu trữ sản phẩm được chọn ✨
-    const [promoType, setPromoType] = useState('percent');
-    const [promoValue, setPromoValue] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
 
-    // Chuẩn bị dữ liệu cho react-select
-    const productOptions = mockProducts.map(product => ({
-        value: product.id,
-        label: `${product.name} (ID: ${product.id})`
-    }));
+    const [name, setName] = useState('');
+    const [appliedProducts, setAppliedProducts] = useState([]);
+    const [type, setType] = useState('percent');
+    const [value, setValue] = useState('');
+    const [status, setStatus] = useState('active');
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const promotionData = {
-            promoName,
-            appliedProductIds: selectedProducts.map(p => p.value), // Lấy ra danh sách ID sản phẩm
-            promoType,
-            promoValue,
-            startDate,
-            endDate,
-            createdAt: new Date().toISOString()
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
+
+    const [productOptions, setProductOptions] = useState([]);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [fetchError, setFetchError] = useState('');
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            dispatch(showLoading());
+            try {
+                setFetchError('');
+                const response = await axios.get('/api/v1/products');
+                const options = response.data.data.map(product => ({
+                    value: product._id,
+                    label: product.name
+                }));
+                setProductOptions(options);
+            } catch (err) {
+                setFetchError('Không thể tải danh sách sản phẩm. Vui lòng thử lại.');
+                console.error(err);
+            } finally {
+                dispatch(hideLoading());
+            }
         };
-        console.log("Dữ liệu khuyến mãi mới:", promotionData);
-        alert('Chương trình khuyến mãi đã được tạo! (Kiểm tra console log)');
+        fetchProducts();
+    }, [dispatch]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+
+        if (!startDate || !endDate) {
+            return setError('Vui lòng chọn ngày bắt đầu và ngày kết thúc.');
+        }
+        if (appliedProducts.length === 0) {
+            return setError('Vui lòng chọn ít nhất một sản phẩm.');
+        }
+        if (endDate < startDate) {
+            return setError('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.');
+        }
+
+        dispatch(showLoading());
+
+        const promotionData = {
+            name,
+            appliedProducts: appliedProducts.map(p => p.value),
+            type,
+            value: Number(value),
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            status,
+        };
+
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            };
+            await axios.post('/api/v1/promotions', promotionData, config);
+            setSuccess('Tạo chương trình khuyến mãi thành công! Đang chuyển hướng...');
+            setTimeout(() => navigate('/admin/promotions'), 2000);
+        } catch (err) {
+            const message = err.response?.data?.msg || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+            setError(message);
+        } finally {
+            dispatch(hideLoading());
+        }
     };
 
     return (
@@ -45,113 +118,102 @@ const AddPromotionPage = () => {
                                 <Card.Title as="h4"><FaBullhorn className="me-2" />Tạo Chương trình khuyến mãi mới</Card.Title>
                             </Card.Header>
                             <Card.Body>
-                                {/* Tên chương trình */}
+                                {error && <Alert variant="danger">{error}</Alert>}
+                                {success && <Alert variant="success">{success}</Alert>}
+
                                 <Form.Group className="mb-3" controlId="promoName">
                                     <Form.Label>Tên chương trình</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        placeholder="VD: Giảm giá sốc cho Laptop"
-                                        required
-                                        value={promoName}
-                                        onChange={(e) => setPromoName(e.target.value)}
-                                    />
+                                    <Form.Control type="text" placeholder="VD: Giảm giá sốc cho Laptop" required value={name} onChange={(e) => setName(e.target.value)} />
                                 </Form.Group>
 
-                                {/* ✨ THAY THẾ MÃ KHUYẾN MÃI BẰNG Ô CHỌN SẢN PHẨM ✨ */}
                                 <Form.Group className="mb-3" controlId="selectProducts">
                                     <Form.Label>Áp dụng cho sản phẩm</Form.Label>
-                                    <Select
-                                        isMulti // Cho phép chọn nhiều
-                                        options={productOptions}
-                                        className="basic-multi-select"
-                                        classNamePrefix="select"
-                                        placeholder="Tìm và chọn sản phẩm..."
-                                        value={selectedProducts}
-                                        onChange={setSelectedProducts}
-                                        required
-                                    />
-                                    <Form.Text className="text-muted">
-                                        Chọn một hoặc nhiều sản phẩm để áp dụng khuyến mãi này.
-                                    </Form.Text>
+                                    {fetchError ? (
+                                        <Alert variant="danger">{fetchError}</Alert>
+                                    ) : (
+                                        <Select
+                                            isMulti
+                                            options={productOptions}
+                                            placeholder="Tìm và chọn sản phẩm..."
+                                            value={appliedProducts}
+                                            onChange={setAppliedProducts}
+                                            noOptionsMessage={() => "Không tìm thấy sản phẩm"}
+                                            isLoading={productOptions.length === 0 && !fetchError}
+                                        />
+                                    )}
                                 </Form.Group>
 
                                 <Row>
-                                    {/* Loại khuyến mãi */}
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="promoType">
                                             <Form.Label>Loại khuyến mãi</Form.Label>
-                                            <Form.Select
-                                                value={promoType}
-                                                onChange={(e) => setPromoType(e.target.value)}
-                                            >
+                                            <Form.Select value={type} onChange={(e) => setType(e.target.value)}>
                                                 <option value="percent">Giảm giá theo %</option>
-                                                <option value="fixed">Giảm giá tiền mặt</option>
+                                                <option value="fixed_amount">Giảm giá tiền mặt</option>
                                             </Form.Select>
                                         </Form.Group>
                                     </Col>
-                                    {/* Giá trị */}
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="promoValue">
                                             <Form.Label>Giá trị</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control
-                                                    type="number"
-                                                    placeholder={promoType === 'percent' ? "VD: 15" : "VD: 100000"}
-                                                    required
-                                                    value={promoValue}
-                                                    onChange={(e) => setPromoValue(e.target.value)}
-                                                />
-                                                <InputGroup.Text>
-                                                    {promoType === 'percent' ? '%' : 'đ'}
-                                                </InputGroup.Text>
-                                            </InputGroup>
+                                            <Form.Control type="number" placeholder={type === 'percent' ? "VD: 15" : "VD: 100000"} required min="0" value={value} onChange={(e) => setValue(e.target.value)} />
                                         </Form.Group>
                                     </Col>
                                 </Row>
 
                                 <Row>
-                                    {/* Ngày bắt đầu */}
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="startDate">
                                             <Form.Label>Ngày bắt đầu</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control
-                                                    type="date"
-                                                    required
-                                                    value={startDate}
-                                                    onChange={(e) => setStartDate(e.target.value)}
-                                                />
-                                                <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
-                                            </InputGroup>
+                                            <DatePicker
+                                                selected={startDate}
+                                                onChange={(date) => setStartDate(date)}
+                                                selectsStart
+                                                startDate={startDate}
+                                                endDate={endDate}
+                                                dateFormat="dd/MM/yyyy"
+                                                autoComplete="off"
+                                                required
+                                                customInput={<CustomDateInput placeholder="Chọn ngày bắt đầu" />}
+                                            />
                                         </Form.Group>
                                     </Col>
-                                    {/* Ngày kết thúc */}
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="endDate">
                                             <Form.Label>Ngày kết thúc</Form.Label>
-                                            <InputGroup>
-                                                <Form.Control
-                                                    type="date"
-                                                    required
-                                                    value={endDate}
-                                                    onChange={(e) => setEndDate(e.target.value)}
-                                                />
-                                                <InputGroup.Text><FaCalendarAlt /></InputGroup.Text>
-                                            </InputGroup>
+                                            <DatePicker
+                                                selected={endDate}
+                                                onChange={(date) => setEndDate(date)}
+                                                selectsEnd
+                                                startDate={startDate}
+                                                endDate={endDate}
+                                                minDate={startDate}
+                                                dateFormat="dd/MM/yyyy"
+                                                autoComplete="off"
+                                                required
+                                                customInput={<CustomDateInput placeholder="Chọn ngày kết thúc" />}
+                                            />
                                         </Form.Group>
                                     </Col>
                                 </Row>
-
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Trạng thái</Form.Label>
+                                    <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
+                                        <option value="active">Hoạt động</option>
+                                        <option value="inactive">Không hoạt động</option>
+                                    </Form.Select>
+                                </Form.Group>
                             </Card.Body>
                             <Card.Footer className="text-end">
-                                <Button variant="secondary" type="button" className="me-2">Hủy</Button>
-                                <Button variant="primary" type="submit">Lưu chương trình</Button>
+                                <Button variant="secondary" type="button" className="me-2" onClick={() => navigate('/admin/promotions')}>Hủy</Button>
+                                <Button variant="primary" type="submit">
+                                    Lưu chương trình
+                                </Button>
                             </Card.Footer>
                         </Card>
                     </Form>
                 </Col>
 
-                {/* CỘT PHẢI: HƯỚNG DẪN / GỢI Ý */}
                 <Col md={4}>
                     <Card className="card-custom">
                         <Card.Header>
