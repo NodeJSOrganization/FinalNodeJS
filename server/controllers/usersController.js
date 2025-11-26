@@ -184,6 +184,58 @@ exports.updateMe = async (req, res) => {
         if (req.body.phoneNumber !== undefined) updateData.phoneNumber = req.body.phoneNumber;
         if (req.body.gender !== undefined) updateData.gender = req.body.gender;
         if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = req.body.dateOfBirth;
+        // Nếu FE gửi kèm nhiều địa chỉ
+        if (req.body.addresses !== undefined) {
+            let addresses = req.body.addresses;
+
+            // Nếu đi qua FormData, addresses có thể là chuỗi JSON
+            if (typeof addresses === "string") {
+                try {
+                addresses = JSON.parse(addresses);
+                } catch (e) {
+                addresses = [];
+                }
+            }
+
+            if (Array.isArray(addresses)) {
+                let foundDefault = false;
+
+                const normalized = addresses.map((addr) => {
+                    const isDefault = !!addr.isDefault && !foundDefault;
+                    if (isDefault) foundDefault = true;
+
+                    return {
+                        fullName: addr.fullName || "",
+                        phoneNumber: addr.phoneNumber || "",
+                        streetAddress: addr.streetAddress || "",
+                        ward: addr.ward || "",
+                        district: addr.district || "",
+                        province: addr.province || "",
+                        isDefault,
+                    };
+                });
+
+                // Nếu chưa có default thì set cái đầu tiên
+                if (!foundDefault && normalized.length > 0) {
+                    normalized[0].isDefault = true;
+                }
+
+                updateData.addresses = normalized;
+
+                // Optional: sync address đơn (cũ) = địa chỉ mặc định cho backward compatibility
+                const def = normalized.find((a) => a.isDefault) || normalized[0];
+                if (def) {
+                    updateData.address = {
+                        province: def.province,
+                        district: def.district,
+                        ward: def.ward,
+                        streetAddress: def.streetAddress,
+                    };
+                } else {
+                    updateData.address = undefined;
+                }
+            }
+        }
 
         // Xử lý upload avatar nếu có file mới
         if (req.file) {
