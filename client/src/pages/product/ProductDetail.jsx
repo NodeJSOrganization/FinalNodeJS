@@ -199,54 +199,16 @@ const ProductDetail = () => {
     }
   };
 
-  const handleAddVariantToCart = () => {
-    if (!currentVariant) return;
+  const createItemData = () => {
+    if (!currentVariant) return null;
 
-    // Dữ liệu cần cho API (nếu đã đăng nhập)
-    const apiData = {
+    return {
+      // Dữ liệu cần cho API (nếu đã đăng nhập)
       productId: selectedProduct._id,
       variantId: currentVariant._id,
       quantity: 1,
-    };
 
-    // Dữ liệu đầy đủ cần cho localStorage (nếu là khách)
-    const snapshotData = {
-      productSnapshot: {
-        _id: selectedProduct._id,
-        name: selectedProduct.name,
-        images: selectedProduct.images,
-      },
-      variantSnapshot: {
-        _id: currentVariant._id,
-        // ... các trường khác của variant
-      },
-    };
-
-    // Gộp cả hai lại để thunk có thể sử dụng
-    const itemData = { ...apiData, ...snapshotData };
-
-    dispatch(addItem(itemData))
-      .unwrap()
-      .then(() => {
-        alert(`Đã thêm vào giỏ hàng!`);
-      })
-      .catch((errorMsg) => {
-        alert(`Lỗi: ${errorMsg}`);
-      });
-  };
-
-  const handleBuyNow = () => {
-    if (!currentVariant) return;
-
-    // Dữ liệu cần cho API (nếu đã đăng nhập)
-    const apiData = {
-      productId: selectedProduct._id,
-      variantId: currentVariant._id,
-      quantity: 1,
-    };
-
-    // Dữ liệu đầy đủ cần cho localStorage (nếu là khách)
-    const snapshotData = {
+      // Dữ liệu đầy đủ cần cho localStorage (nếu là khách)
       productSnapshot: {
         _id: selectedProduct._id,
         name: selectedProduct.name,
@@ -261,9 +223,31 @@ const ProductDetail = () => {
         sku: currentVariant.sku,
       },
     };
+  };
 
-    // Gộp cả hai lại để thunk có thể sử dụng
-    const itemData = { ...apiData, ...snapshotData };
+  const handleAddVariantToCart = () => {
+    const itemData = createItemData(); // Gọi hàm helper
+    if (!itemData) {
+      alert("Vui lòng chọn đầy đủ cấu hình sản phẩm.");
+      return;
+    }
+
+    dispatch(addItem(itemData))
+      .unwrap()
+      .then(() => {
+        alert(`Đã thêm vào giỏ hàng!`);
+      })
+      .catch((errorMsg) => {
+        alert(`Lỗi: ${errorMsg}`);
+      });
+  };
+
+  const handleBuyNow = () => {
+    const itemData = createItemData();
+    if (!itemData) {
+      alert("Vui lòng chọn đầy đủ cấu hình sản phẩm.");
+      return;
+    }
 
     dispatch(addItem(itemData))
       .unwrap()

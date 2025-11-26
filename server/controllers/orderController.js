@@ -61,29 +61,37 @@ exports.createOrder = async (req, res) => {
         userId = existingUser._id;
       } else {
         // Nếu là email mới, tự động tạo tài khoản mới
-        const randomPassword = crypto.randomBytes(6).toString("hex"); // Tạo mật khẩu ngẫu nhiên
+        // const randomPassword = crypto.randomBytes(6).toString("hex"); // Tạo mật khẩu ngẫu nhiên
+        // const newUser = await User.create({
+        //   fullName: customerInfo.name,
+        //   email: customerInfo.email,
+        //   phoneNumber: customerInfo.phone,
+        //   password: randomPassword, // QUAN TRỌNG: User model của bạn cần có middleware pre-save để HASH mật khẩu này
+        // });
+        // userId = newUser._id;
+        newAccountPassword = crypto.randomBytes(6).toString("hex");
         const newUser = await User.create({
           fullName: customerInfo.name,
           email: customerInfo.email,
           phoneNumber: customerInfo.phone,
-          password: randomPassword, // QUAN TRỌNG: User model của bạn cần có middleware pre-save để HASH mật khẩu này
+          password: newAccountPassword, // User model sẽ tự động hash mật khẩu này
         });
         userId = newUser._id;
 
         // Gửi email chào mừng và thông báo mật khẩu tạm thời
-        // try {
-        //     await sendEmail({
-        //         to: newUser.email,
-        //         subject: 'Chào mừng bạn! Tài khoản của bạn đã được tạo.',
-        //         html: `<h3>Chào ${newUser.fullName},</h3>
-        //                <p>Một tài khoản đã được tự động tạo cho bạn tại trang web của chúng tôi.</p>
-        //                <p>Bạn có thể đăng nhập bằng email này và mật khẩu tạm thời: <b>${randomPassword}</b></p>
-        //                <p>Chúng tôi khuyên bạn nên đổi mật khẩu sau khi đăng nhập lần đầu tiên.</p>`
-        //     });
-        // } catch (emailError) {
-        //     console.error("Lỗi khi gửi email tạo tài khoản:", emailError);
-        //     // Không chặn quy trình đặt hàng nếu chỉ lỗi gửi mail
-        // }
+        try {
+          await sendEmail({
+            to: newUser.email,
+            subject: "Chào mừng bạn! Tài khoản của bạn đã được tạo.",
+            html: `<h3>Chào ${newUser.fullName},</h3>
+                       <p>Một tài khoản đã được tự động tạo cho bạn tại trang web của chúng tôi.</p>
+                       <p>Bạn có thể đăng nhập bằng email này và mật khẩu tạm thời: <b>${newAccountPassword}</b></p>
+                       <p>Chúng tôi khuyên bạn nên đổi mật khẩu sau khi đăng nhập lần đầu tiên.</p>`,
+          });
+        } catch (emailError) {
+          console.error("Lỗi khi gửi email tạo tài khoản:", emailError);
+          // Không chặn quy trình đặt hàng nếu chỉ lỗi gửi mail
+        }
       }
     }
 
