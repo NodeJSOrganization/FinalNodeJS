@@ -30,9 +30,9 @@ const ProductItem = ({ product }) => {
           onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
           onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
         />
-        <div className="card-body p-3 bg-light d-flex flex-column">
+        <div className="card-body p-3 d-flex flex-column bg-success ">
           <span
-            className="badge bg-primary mb-2 px-3 py-2 fw-bold text-uppercase shadow-sm"
+            className="badge bg-primary bg-green-400 mb-2 px-3 py-2 fw-bold text-uppercase shadow-sm"
             style={{ alignSelf: "flex-start", letterSpacing: "0.5px" }}
           >
             {product.brand?.name || "Không rõ"}
