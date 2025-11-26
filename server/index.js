@@ -6,12 +6,6 @@ const cors = require('cors');
 
 dotenv.config();
 
-app.use(cors({
-  origin: 'http://localhost:5173', // hoặc 3000, tuỳ FE
-  credentials: true,               // nếu sau này dùng cookie
-}));
-
-
 const authRoutes = require('./routes/auth');
 const categoryRoutes = require('./routes/categories');
 const brandRoutes = require('./routes/brands');
@@ -37,6 +31,12 @@ const connectDB = async () => {
 connectDB();
 
 const app = express();
+
+app.use(cors({
+  origin: 'http://localhost:5173', // hoặc 3000, tuỳ FE
+  credentials: true,               // nếu sau này dùng cookie
+}));
+
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);

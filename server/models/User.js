@@ -38,6 +38,9 @@ const UserSchema = new mongoose.Schema({
         ward: { type: String },
         streetAddress: { type: String }
     },
+    dateOfBirth: {
+        type: String, // lưu dạng "YYYY-MM-DD"
+    },
     password: {
         type: String,
         required: [true, 'Vui lòng nhập mật khẩu'],

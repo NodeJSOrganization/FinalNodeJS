@@ -105,29 +105,44 @@ export default function AccountProfile() {
           onCancel={() => setIsEditing(false)}
           onSave={async (updated) => {
             try {
-              // Payload gửi backend
-              const payload = {
-                fullName: updated.fullName,
-                phoneNumber: updated.phone,
-                gender: updated.gender,
-                // nếu backend sau này thêm dateOfBirth, email... thì gửi kèm
-              };
+              const { avatarFile, ...rest } = updated;
 
-              const res = await updateMe(payload);
+              let res;
+              if (avatarFile) {
+                // Gửi dạng FormData để backend nhận được req.file
+                const formData = new FormData();
+                formData.append("fullName", rest.fullName);
+                formData.append("phoneNumber", rest.phone);
+                formData.append("gender", rest.gender);
+                if (rest.dateOfBirth) {
+                  formData.append("dateOfBirth", rest.dateOfBirth);
+                }
+                formData.append("avatar", avatarFile); // TÊN FIELD 'avatar' trùng upload.single('avatar')
+
+                res = await updateMe(formData); // updateMe sẽ nhận FormData
+              } else {
+                // Không đổi avatar -> gửi JSON như cũ
+                const payload = {
+                  fullName: rest.fullName,
+                  phoneNumber: rest.phone,
+                  gender: rest.gender,
+                  dateOfBirth: rest.dateOfBirth,
+                };
+                res = await updateMe(payload);
+              }
+
               const updatedUser = res.data.data;
 
-              // Cập nhật Redux (authSlice) -> header, sidebar, layout đều thấy user mới
               dispatch(updateUserInState(updatedUser));
 
-              // Cập nhật lại profile local để khớp dữ liệu hiển thị
               setProfile((prev) => ({
                 ...prev,
                 avatarUrl: updatedUser.avatar?.url || prev.avatarUrl,
-                fullName: updatedUser.fullName || updated.fullName,
-                phone: updatedUser.phoneNumber || updated.phone,
-                gender: updatedUser.gender || updated.gender,
+                fullName: updatedUser.fullName || rest.fullName,
+                phone: updatedUser.phoneNumber || rest.phone,
+                gender: updatedUser.gender || rest.gender,
+                dateOfBirth: updatedUser.dateOfBirth || rest.dateOfBirth,
                 loyaltyPoints: updatedUser.loyaltyPoints ?? prev.loyaltyPoints,
-                // dateOfBirth... nếu sau này có
               }));
 
               setIsEditing(false);

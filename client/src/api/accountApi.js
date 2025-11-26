@@ -4,8 +4,14 @@ import api from './apiClient';
 export const getMe = () => api.get('/v1/users/me');
 
 // Cập nhật profile
-export const updateMe = (payload) =>
-  api.put("/v1/users/updateme", payload);
+export const updateMe = (data) => {
+  if (data instanceof FormData) {
+    return api.put("/v1/users/updateme", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  }
+  return api.put("/v1/users/updateme", data);
+};
 
 // Đổi mật khẩu trong Account
 export const changePassword = (payload) =>

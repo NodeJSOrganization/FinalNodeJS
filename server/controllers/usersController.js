@@ -183,6 +183,7 @@ exports.updateMe = async (req, res) => {
         if (req.body.fullName !== undefined) updateData.fullName = req.body.fullName;
         if (req.body.phoneNumber !== undefined) updateData.phoneNumber = req.body.phoneNumber;
         if (req.body.gender !== undefined) updateData.gender = req.body.gender;
+        if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = req.body.dateOfBirth;
 
         // Xử lý upload avatar nếu có file mới
         if (req.file) {
