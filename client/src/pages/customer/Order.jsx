@@ -18,6 +18,7 @@ import {
   saveShippingInfo,
   saveCustomerInfo,
   fetchProvinces,
+  updateShippingInfo,
 } from "../../../features/order/orderReducer";
 
 import AddressSelector from "../../components/product/AddressSelector";
@@ -71,7 +72,30 @@ export default function OrderPage() {
         ...prev,
         receiverName: user.fullName || "",
         receiverPhone: user.phoneNumber || "",
+        detail: user.address?.streetAddress || "",
       }));
+      if (user.address) {
+        const { province, district, ward } = user.address;
+
+        // Dispatch để cập nhật Tỉnh/Thành phố vào Redux
+        // Component AddressSelector sẽ dựa vào đây để hiển thị
+        if (province) {
+          dispatch(
+            updateShippingInfo({ field: "provinceName", value: province })
+          );
+        }
+        // Tương tự cho Quận/Huyện và Phường/Xã
+        if (district) {
+          dispatch(
+            updateShippingInfo({ field: "districtName", value: district })
+          );
+        }
+        if (ward) {
+          dispatch(updateShippingInfo({ field: "wardName", value: ward }));
+        }
+        // Ghi chú: Component AddressSelector của bạn cần được thiết kế để
+        // có thể nhận và hiển thị các giá trị mặc định này.
+      }
     }
   }, [isAuthenticated, user]);
 
