@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import axios from "axios";
 import { changePassword } from "../../../api/accountApi.js";
 import {
   Card,
@@ -87,30 +86,16 @@ export default function AccountChangePassword() {
   const handleVerify = async (e) => {
     e.preventDefault();
     setError("");
+
     if (!currentPassword) {
       setError("Vui lòng nhập mật khẩu hiện tại.");
       return;
     }
 
-    try {
-      setLoading(true);
-      const res = await axios.post("/api/account/verify-password", {
-        currentPassword,
-      });
-      if (res?.data?.ok) {
-        setStep("NEW");
-        setSuccessMsg("");
-      } else {
-        setError("Mật khẩu hiện tại không đúng.");
-      }
-    } catch (err) {
-      // Nếu backend chưa sẵn, bạn có thể tạm DEMO bằng cách coi mọi mật khẩu đều đúng:
-      // setStep("NEW");
-      // return;
-      setError(err?.response?.data?.message || "Xác thực mật khẩu thất bại.");
-    } finally {
-      setLoading(false);
-    }
+    // Tạm thời chỉ chuyển sang bước nhập mật khẩu mới.
+    // Việc kiểm tra currentPassword sẽ được backend xử lý ở bước changePassword.
+    setStep("NEW");
+    setSuccessMsg("");
   };
 
   const handleChangePassword = async (e) => {
@@ -364,9 +349,9 @@ export default function AccountChangePassword() {
 
       <Card className="shadow-sm">
         <Card.Body>
-          {step === "VERIFY" && <VerifyForm />}
-          {step === "NEW" && <NewPasswordForm />}
-          {step === "DONE" && <DoneView />}
+          {step === "VERIFY" && VerifyForm()}
+          {step === "NEW" && NewPasswordForm()}
+          {step === "DONE" && DoneView()}
         </Card.Body>
       </Card>
     </div>
