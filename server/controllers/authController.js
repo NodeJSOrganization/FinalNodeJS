@@ -26,8 +26,8 @@ exports.register = async (req, res, next) => {
     user = new User({ fullName, email, phoneNumber, password, address });
     // --- END: CẬP NHẬT ---
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    // const salt = await bcrypt.genSalt(10);
+    // user.password = await bcrypt.hash(password, salt);
     const verificationToken = user.getEmailVerificationToken();
     await user.save();
     const verificationUrl = `${req.protocol}://${req.get(
@@ -246,8 +246,8 @@ exports.resetPassword = async (req, res, next) => {
     user.resetPasswordExpires = undefined;
 
     // Mã hóa mật khẩu mới
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(user.password, salt);
+    // const salt = await bcrypt.genSalt(10);
+    // user.password = await bcrypt.hash(user.password, salt);
 
     // --- THAY ĐỔI QUAN TRỌNG TẠI ĐÂY ---
     // Khi lưu, chỉ validate những trường đã được sửa đổi (password, reset tokens)
@@ -281,8 +281,9 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ success: false, msg: 'Mật khẩu hiện tại không chính xác.' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    // const salt = await bcrypt.genSalt(10);
+    // user.password = await bcrypt.hash(newPassword, salt);
+    user.password = newPassword;
 
     await user.save({ validateModifiedOnly: true });
 

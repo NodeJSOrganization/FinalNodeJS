@@ -266,15 +266,59 @@ exports.getAllOrders = async (req, res) => {
  * @route   GET /api/v1/orders/myorders
  * @access  Private
  */
+const mapOrderToClient = (orderDoc) => {
+  const o = orderDoc.toObject();
+
+  const statusMap = {
+    pending: "PENDING",
+    confirmed: "READY",
+    shipping: "SHIPPING",
+    delivered: "COMPLETED",
+    cancelled: "CANCELED",
+  };
+
+  return {
+    _id: o._id,
+    orderId: "#" + o._id.toString().slice(-6).toUpperCase(), // giống email
+    status: statusMap[o.currentStatus] || "PENDING",
+    createdAt: o.createdAt,
+    paymentMethod: o.paymentMethod, // hoặc format lại nếu muốn
+
+    shippingFee: o.summary?.shippingFee || 0,
+    couponCode: o.appliedVoucher?.code || null,
+    couponDiscount: o.summary?.voucherDiscount || 0,
+    pointsUsed: o.usedPoints || 0,
+
+    recipient: {
+      name: o.shippingInfo?.receiverName || "",
+      phone: o.shippingInfo?.receiverPhone || "",
+      address: o.shippingInfo?.fullAddress || "",
+    },
+
+    items: (o.items || []).map((item) => ({
+      productId: item.product,
+      image: item.variant?.image,
+      name: item.variant?.name,
+      variant: item.variant?.variantName,
+      qty: item.quantity,
+      priceOriginal: item.variant?.price,
+      discount: 0, // hiện chưa có discount theo item -> set 0
+    })),
+  };
+};
+
 exports.getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user.id }).sort({
       createdAt: -1,
     });
+
+    const clientOrders = orders.map(mapOrderToClient);
+
     res.status(200).json({
       success: true,
-      count: orders.length,
-      data: orders,
+      count: clientOrders.length,
+      data: clientOrders,
     });
   } catch (error) {
     console.error("Lỗi khi lấy đơn hàng của tôi:", error);
