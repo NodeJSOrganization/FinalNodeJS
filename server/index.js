@@ -14,6 +14,7 @@ const discounts = require('./routes/discounts');
 const promotions = require('./routes/promotions');
 const users = require('./routes/users'); 
 const inventoryRoutes = require('./routes/inventory');
+const ordersRoutes = require('./routes/order');
 
 const connectDB = async () => {
     try {
@@ -47,6 +48,7 @@ app.use('/api/v1/discounts', discounts);
 app.use('/api/v1/promotions', promotions);
 app.use('/api/v1/users', users);
 app.use('/api/v1/inventory', inventoryRoutes); 
+app.use('/api/v1/orders', ordersRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server đang chạy trên cổng ${PORT}`));
