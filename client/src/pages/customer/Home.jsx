@@ -7,14 +7,14 @@ import {
   Tab,
   Alert,
   Image,
+  Spinner,
 } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Logo from "../../assets/images/logo_white_space.png";
 import "../../styles/Home.css";
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect, useState } from "react";
-import { ProductSampleData } from "../../data/ProductSampleData";
+import { useEffect, useMemo, useState } from "react";
 import { setProducts } from "../../../features/product/productReducer";
 import BestSeller from "../../components/product/BestSellerSession";
 import ProductItem from "../../components/product/ProductItem";
@@ -26,61 +26,77 @@ import { brandsData } from "../../data/Brands";
 const Home = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
-
-  useEffect(() => {
-    const allProductsFromSample = Object.entries(ProductSampleData).flatMap(
-      ([category, items]) =>
-        items.map((item) => ({
-          ...item,
-          category,
-        }))
-    );
-
-    dispatch(setProducts(allProductsFromSample));
-  }, [dispatch]);
 
   const allProducts = useSelector((state) => state.product.products);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchHomeData = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        const { data } = await axios.get("/api/v1/products");
-        dispatch(setProducts(data.data));
+        const [productsResponse, categoriesResponse] = await Promise.all([
+          axios.get("/api/v1/products"),
+          axios.get("/api/v1/categories"),
+        ]);
+
+        dispatch(setProducts(productsResponse.data.data));
+
+        setCategories(
+          categoriesResponse.data.data
+            .filter((cat) => cat.status === "active")
+            .slice(0, 3)
+        );
       } catch (err) {
-        console.log(err);
+        console.error("Lỗi khi tải dữ liệu trang chủ:", err);
+        setError("Không thể tải được dữ liệu. Vui lòng thử lại sau.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchProducts();
-  }, []);
+    fetchHomeData();
+  }, [dispatch]);
 
-  // best seller tính dựa vào số lượng đã bán nên chưa làm
   const bestSellers = [];
 
+  const filteredProductsByTab = useMemo(() => {
+    if (activeTab === "all") return allProducts;
+    return allProducts.filter(
+      (product) => product.category?.name === activeTab
+    );
+  }, [allProducts, activeTab]);
+
   const newProducts = [...allProducts]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Sắp xếp giảm dần
-    .slice(0, 6); // Lấy 6 sản phẩm đầu tiên
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 6);
 
-  const laptops = allProducts.filter(
-    (product) => product.category.name === "Laptop"
-  );
-  const monitors = allProducts.filter(
-    (product) => product.category.name === "Màn hình"
-  );
-  const hardDrives = allProducts.filter(
-    (product) => product.category.name === "Ram"
-  );
+  if (isLoading) {
+    return (
+      <Container
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "80vh" }}
+      >
+        <Spinner animation="border" variant="primary" />
+        <p className="ms-3 mb-0">Đang tải dữ liệu...</p>
+      </Container>
+    );
+  }
 
-  const filteredProducts = allProducts.filter((product) => {
-    const matchesCategory =
-      activeTab === "all" || product.category.name === activeTab;
-    return matchesCategory;
-  });
+  if (error) {
+    return (
+      <Container className="py-5">
+        <Alert variant="danger">{error}</Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container fluid className="py-4 bg-light">
-      {/* Phần banner */}
       <div className="bg-dark text-white text-center py-5">
         <Container>
           <Row className="align-items-center">
@@ -130,6 +146,7 @@ const Home = () => {
           </Row>
         </Container>
       </div>
+
       <Alert
         variant="info"
         className="text-center py-3 mb-4 "
@@ -155,10 +172,12 @@ const Home = () => {
           Hết hạn trong 24 giờ 🔥
         </span>
       </Alert>
+
       <BestSeller bestSellers={bestSellers} />
+
       <section className="mb-5">
         <h1 className="text-center text-primary mb-4 mt-5">Sản phẩm mới</h1>
-        <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
+        <Row xs={2} md={3} lg={5} className="g-4">
           {newProducts.map((product) => (
             <Col key={product._id}>
               <ProductItem product={product} />
@@ -166,159 +185,112 @@ const Home = () => {
           ))}
         </Row>
       </section>
-      <Alert
-        variant="info"
-        className="text-center py-3 mb-4 position-relative overflow-hidden"
-        style={{
-          backgroundColor: "#4a90e2",
-          color: "white",
-          fontWeight: "bold",
-          fontSize: "1.1rem",
-        }}
-      >
-        <span className="animate-pulse">
-          💻 LAPTOPS SIÊU MẠNH - GIẢM 50% CHO DÒNG GAMING! ⏳ HẾT HẠN ĐÊM NAY
-        </span>
-        <Button
-          variant="light"
-          size="sm"
-          className="ms-3 animate-bounce"
-          style={{ borderRadius: "20px", padding: "5px 15px" }}
-          onClick={() => {
-            navigate("/laptops");
-          }}
-        >
-          Mua ngay
-        </Button>
-        <div
-          className="position-absolute top-0 start-0 w-25 h-100"
-          style={{
-            background: "linear-gradient(to left, transparent, #4a90e2)",
-            animation: "slide 4s infinite linear",
-          }}
-        />
-      </Alert>
-      <section className="mb-5">
-        <h2 className="text-center text-primary mb-4">Laptops</h2>
-        <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4 flex-column flex-md-row">
-          {laptops.map((product) => (
-            <Col key={product._id} className="mb-4">
-              <ProductItem product={product} />
-            </Col>
-          ))}
-        </Row>
-      </section>
-      <Alert
-        variant="info"
-        className="text-center py-3 mb-4 position-relative overflow-hidden"
-        style={{
-          backgroundColor: "#ff6f61",
-          color: "white",
-          fontWeight: "bold",
-          fontSize: "1.1rem",
-        }}
-      >
-        <span className="animate-pulse">
-          🎉 SIÊU ƯU ĐÃI MONITORS - GIẢM 40% CHO MÀN HÌNH 4K! ⏳ CHỈ CÒN 12 GIỜ
-        </span>
-        <Button
-          variant="light"
-          size="sm"
-          className="ms-3 animate-bounce"
-          style={{ borderRadius: "20px", padding: "5px 15px" }}
-          onClick={() => {
-            navigate("/monitors");
-          }}
-        >
-          Mua ngay
-        </Button>
-        <div
-          className="position-absolute top-0 end-0 w-25 h-100"
-          style={{
-            background: "linear-gradient(to right, transparent, #ff6f61)",
-            animation: "slide 4s infinite linear",
-          }}
-        />
-      </Alert>
-      <section className="mb-5">
-        <h2 className="text-center text-primary mb-4">Monitors</h2>
-        <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4 flex-column flex-md-row">
-          {monitors.map((product) => (
-            <Col key={product._id} className="mb-4">
-              <ProductItem product={product} />
-            </Col>
-          ))}
-        </Row>
-      </section>
-      <Alert
-        variant="info"
-        className="text-center py-3 mb-4 position-relative overflow-hidden"
-        style={{
-          backgroundColor: "#2ecc71",
-          color: "white",
-          fontWeight: "bold",
-          fontSize: "1.1rem",
-        }}
-      >
-        <span className="animate-pulse">
-          💾 HARD DRIVES ƯU ĐÃI - TĂNG 1TB MIỄN PHÍ! ⏳ CHỈ TRONG 24 GIỜ
-        </span>
-        <Button
-          variant="light"
-          size="sm"
-          className="ms-3 animate-bounce"
-          style={{ borderRadius: "20px", padding: "5px 15px" }}
-          onClick={() => {
-            navigate("/hard-drives");
-          }}
-        >
-          Mua ngay
-        </Button>
-        <div
-          className="position-absolute top-0 end-0 w-25 h-100"
-          style={{
-            background: "linear-gradient(to right, transparent, #2ecc71)",
-            animation: "slide 4s infinite linear",
-          }}
-        />
-      </Alert>
-      <section className="mb-5">
-        <h2 className="text-center text-primary mb-4">Hard Drives</h2>
-        <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4 flex-column flex-md-row">
-          {hardDrives.map((product) => (
-            <Col key={product._id} className="mb-4">
-              <ProductItem product={product} />
-            </Col>
-          ))}
-        </Row>
-      </section>
+
+      {categories.map((category) => {
+        const categoryProducts = allProducts
+          .filter((p) => p.category?.name === category.name) // Lọc theo tên để dễ đọc
+          .slice(0, 5);
+
+        if (categoryProducts.length === 0) return null;
+
+        let bgColor, buttonLink, flashMessage;
+
+        if (category.name.toLowerCase().includes("laptop")) {
+          bgColor = "#4a90e2";
+          buttonLink = "/laptops";
+          flashMessage =
+            "💻 LAPTOPS SIÊU MẠNH - GIẢM 50% CHO DÒNG GAMING! ⏳ HẾT HẠN ĐÊM NAY";
+        } else if (
+          category.name.toLowerCase().includes("màn hình") ||
+          category.name.toLowerCase().includes("monitor")
+        ) {
+          bgColor = "#ff6f61";
+          buttonLink = "/monitors";
+          flashMessage =
+            "🎉 SIÊU ƯU ĐÃI MONITORS - GIẢM 40% CHO MÀN HÌNH 4K! ⏳ CHỈ CÒN 12 GIỜ";
+        } else if (
+          category.name.toLowerCase().includes("ram") ||
+          category.name.toLowerCase().includes("hard drive")
+        ) {
+          bgColor = "#2ecc71";
+          buttonLink = "/hard-drives";
+          flashMessage =
+            "💾 HARD DRIVES ƯU ĐÃI - TĂNG 1TB MIỄN PHÍ! ⏳ CHỈ TRONG 24 GIỜ";
+        } else {
+          bgColor = "#8e44ad";
+          buttonLink = `/products/category/${category.name}`;
+          flashMessage = `🌟 ƯU ĐÃI ĐẶC BIỆT DÀNH CHO ${category.name.toUpperCase()}! 🔥 MUA NGAY KẺO HẾT`;
+        }
+
+        return (
+          <section key={category._id} className="mb-5">
+            <Alert
+              variant="info"
+              className="text-center py-3 mb-4 position-relative overflow-hidden"
+              style={{
+                backgroundColor: bgColor, // Màu nền động
+                color: "white",
+                fontWeight: "bold",
+                fontSize: "1.1rem",
+              }}
+            >
+              <span className="animate-pulse">{flashMessage}</span>
+              <Button
+                variant="light"
+                size="sm"
+                className="ms-3 animate-bounce"
+                style={{ borderRadius: "20px", padding: "5px 15px" }}
+                onClick={() => {
+                  navigate(buttonLink);
+                }}
+              >
+                Mua ngay
+              </Button>
+              <div
+                className="position-absolute top-0 end-0 w-25 h-100"
+                style={{
+                  background: `linear-gradient(to right, transparent, ${bgColor})`,
+                  animation: "slide 4s infinite linear",
+                }}
+              />
+            </Alert>
+
+            <Row xs={1} md={3} lg={5} className="g-4">
+              {categoryProducts.map((product) => (
+                <Col key={product._id}>
+                  <ProductItem product={product} />
+                </Col>
+              ))}
+            </Row>
+          </section>
+        );
+      })}
+
       <Tabs
-        defaultActiveKey="all"
-        id="categories-tab"
-        className="mb-4 justify-content-center"
         activeKey={activeTab}
         onSelect={(k) => setActiveTab(k)}
+        id="categories-tab"
+        className="mb-4 justify-content-center"
       >
         <Tab eventKey="all" title="Tất cả"></Tab>
-        <Tab eventKey="Laptop" title="Laptops"></Tab>
-        <Tab eventKey="Màn hình" title="Monitors"></Tab>
-        <Tab eventKey="Ram" title="Hard Drives"></Tab>
+        {categories.map((cat) => (
+          <Tab key={cat._id} eventKey={cat.name} title={cat.name}></Tab>
+        ))}
       </Tabs>
 
       <section className="mb-5">
         <h2 className="text-center text-primary mb-4">
-          {activeTab === "all"
-            ? "Tất cả sản phẩm"
-            : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
+          {activeTab === "all" ? "Tất cả sản phẩm" : activeTab}
         </h2>
-        <Row className="row-cols-1 row-cols-md-3 row-cols-lg-5 g-4">
-          {filteredProducts.map((product) => (
+        <Row xs={1} md={3} lg={5} className="g-4">
+          {filteredProductsByTab.map((product) => (
             <Col key={product._id}>
               <ProductItem product={product} />
             </Col>
           ))}
         </Row>
       </section>
+
       <PaymentOffersSection heading="ƯU ĐÃI THANH TOÁN" data={paymentOffers} />
       <PaymentOffersSection heading="ƯU ĐÃI SINH VIÊN" data={studentOffers} />
       <PaymentOffersSection
