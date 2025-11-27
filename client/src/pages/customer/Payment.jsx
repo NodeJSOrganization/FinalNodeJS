@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Container,
   Row,
@@ -11,16 +11,20 @@ import {
   Alert,
   ListGroup,
   Image,
+  Spinner,
 } from "react-bootstrap";
 
-import { clearOrderDetails } from "../../../features/order/orderReducer";
-import { clearSelectedItems } from "../../../features/cart/cartReducer";
+// Import các actions/thunks cần thiết
+import { createOrder } from "../../../features/order/orderReducer";
+// **LƯU Ý: Không cần import `clearCart` hay `clearOrderDetails` ở đây nữa**
 
+// Helper định dạng tiền tệ
 const currency = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     Math.max(0, Number(v) || 0)
   );
 
+// Danh sách phương thức thanh toán
 const paymentMethods = [
   {
     id: "cod",
@@ -41,73 +45,95 @@ const paymentMethods = [
 
 export default function PaymentPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const dispatch = useDispatch();
-  const orderData = location.state;
 
+  // Lấy TOÀN BỘ dữ liệu cần thiết từ Redux state
+  const {
+    orderItems,
+    summary,
+    shippingInfo,
+    customerInfo,
+    selectedVoucher,
+    usePoints,
+    status,
+  } = useSelector((state) => state.order);
+
+  // State local
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cod");
   const [error, setError] = useState("");
 
+  // Redirect về giỏ hàng nếu không có đủ thông tin
   useEffect(() => {
-    if (!orderData) {
-      navigate("/cart");
+    if (!shippingInfo?.fullAddress || !orderItems || orderItems.length === 0) {
+      navigate("/cart", { replace: true });
     }
-  }, [orderData, navigate]);
+  }, [orderItems, shippingInfo, navigate]);
 
+  // Tính toán phí vận chuyển và tổng tiền
   const shippingFee = useMemo(() => {
-    if (!orderData?.shippingInfo?.provinceName) {
-      return 30000;
-    }
-    const provinceNormalized = orderData.shippingInfo.provinceName
+    if (!shippingInfo?.provinceName) return 30000;
+    const provinceNormalized = shippingInfo.provinceName
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\u00c0-\u024f]/g, "")
       .toLowerCase();
+    return provinceNormalized.includes("ho chi minh") ? 15000 : 30000;
+  }, [shippingInfo]);
 
-    if (provinceNormalized.includes("ho chi minh")) {
-      return 15000;
-    }
+  const finalTotal = summary.finalTotal + shippingFee;
 
-    return 30000;
-  }, [orderData]);
-
-  if (!orderData) {
-    return null;
-  }
-
-  const { orderItems, customerInfo, shippingInfo, subtotal, savings, payable } =
-    orderData;
-  const finalTotal = payable + shippingFee;
-
+  // Hàm xử lý khi nhấn "Hoàn tất đơn hàng"
   const handleCompleteOrder = () => {
     if (!selectedPaymentMethod) {
       setError("Vui lòng chọn một phương thức thanh toán.");
       return;
     }
+    setError("");
 
-    const generatedOrderId = "DH" + Date.now();
-
-    const finalOrder = {
-      ...orderData,
-      orderId: generatedOrderId,
-      shippingFee: shippingFee,
-      finalTotal: finalTotal,
+    const finalOrderData = {
+      orderItems,
+      customerInfo,
+      shippingInfo,
+      summary: { ...summary, shippingFee, finalTotal },
       paymentMethod: selectedPaymentMethod,
-      orderDate: new Date().toISOString(),
+      selectedVoucher,
+      usePoints,
     };
 
-    console.log("SENDING FINAL ORDER TO SERVER:", finalOrder);
-
-    dispatch(clearSelectedItems());
-    dispatch(clearOrderDetails());
-
-    navigate("/order-success", { state: { orderId: generatedOrderId } });
+    dispatch(createOrder(finalOrderData))
+      .unwrap()
+      .then((createdOrder) => {
+        // **LOGIC ĐÃ ĐƯỢC SỬA:**
+        // KHÔNG dọn dẹp state ở đây.
+        // Chỉ điều hướng đến trang thành công.
+        navigate("/order-success", {
+          state: { orderId: createdOrder._id },
+          replace: true,
+        });
+      })
+      .catch((errorMsg) => {
+        setError(`Đặt hàng thất bại: ${errorMsg}`);
+        window.scrollTo(0, 0);
+      });
   };
+
+  // Tránh render lỗi nếu dữ liệu chưa sẵn sàng
+  if (!shippingInfo || !customerInfo || !summary) {
+    return (
+      <Container
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "80vh" }}
+      >
+        <Spinner animation="border" />
+      </Container>
+    );
+  }
 
   return (
     <Container className="py-4">
       <h2 className="mb-4 text-center">Thanh toán & Chi tiết Đơn hàng</h2>
       <Row className="g-4">
         <Col md={7}>
+          {error && <Alert variant="danger">{error}</Alert>}
           <Card className="shadow-sm mb-4">
             <Card.Header as="h5">1. Thông tin nhận hàng</Card.Header>
             <Card.Body>
@@ -125,7 +151,6 @@ export default function PaymentPage() {
               )}
             </Card.Body>
           </Card>
-
           <Card className="shadow-sm mb-4">
             <Card.Header as="h5">
               2. Chi tiết sản phẩm ({orderItems.length})
@@ -133,11 +158,11 @@ export default function PaymentPage() {
             <ListGroup variant="flush">
               {orderItems.map((item) => (
                 <ListGroup.Item
-                  key={item.variantId}
+                  key={item.variant._id}
                   className="d-flex align-items-center"
                 >
                   <Image
-                    src={item.image}
+                    src={item.variant.image}
                     style={{
                       width: "60px",
                       height: "60px",
@@ -146,23 +171,21 @@ export default function PaymentPage() {
                     rounded
                   />
                   <div className="ms-3 flex-grow-1">
-                    <div className="fw-semibold">{item.name}</div>
+                    <div className="fw-semibold">{item.variant.name}</div>
                     <div className="text-muted small">
                       Số lượng: {item.quantity}
                     </div>
                   </div>
                   <div className="fw-semibold">
-                    {currency(item.price * item.quantity)}
+                    {currency(item.variant.price * item.quantity)}
                   </div>
                 </ListGroup.Item>
               ))}
             </ListGroup>
           </Card>
-
           <Card className="shadow-sm">
             <Card.Header as="h5">3. Chọn phương thức thanh toán</Card.Header>
             <Card.Body>
-              {error && <Alert variant="danger">{error}</Alert>}
               <Form>
                 {paymentMethods.map((method) => (
                   <Card key={method.id} className="mb-3">
@@ -193,19 +216,21 @@ export default function PaymentPage() {
             </Card.Body>
           </Card>
         </Col>
-
         <Col md={5}>
           <Card className="shadow-sm sticky-top" style={{ top: "20px" }}>
             <Card.Header as="h5">Tóm tắt đơn hàng</Card.Header>
             <Card.Body>
               <div className="d-flex justify-content-between mb-2">
                 <span>Tạm tính</span>
-                <span>{currency(subtotal)}</span>
+                <span>{currency(summary.subtotal)}</span>
               </div>
-              {savings > 0 && (
-                <div className="d-flex justify-content-between mb-2">
-                  <span className="text-success">Khuyến mãi</span>
-                  <span className="text-success">-{currency(savings)}</span>
+              {summary.voucherDiscount + summary.pointsDiscount > 0 && (
+                <div className="d-flex justify-content-between mb-2 text-success">
+                  <span>Khuyến mãi</span>
+                  <span>
+                    -
+                    {currency(summary.voucherDiscount + summary.pointsDiscount)}
+                  </span>
                 </div>
               )}
               <div className="d-flex justify-content-between mb-2">
@@ -221,8 +246,19 @@ export default function PaymentPage() {
                 variant="danger"
                 className="w-100 py-2"
                 onClick={handleCompleteOrder}
+                disabled={status.createOrder === "loading"}
               >
-                Hoàn tất đơn hàng
+                {status.createOrder === "loading" ? (
+                  <Spinner
+                    as="span"
+                    animation="border"
+                    size="sm"
+                    role="status"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  "Hoàn tất đơn hàng"
+                )}
               </Button>
             </Card.Body>
           </Card>

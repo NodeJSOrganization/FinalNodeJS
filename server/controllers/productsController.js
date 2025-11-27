@@ -1,19 +1,24 @@
 // controllers/productsController.js
-const Product = require('../models/Product');
-const Category = require('../models/Category');
-const Brand = require('../models/Brand');
-const cloudinary = require('../config/cloudinary');
+const Product = require("../models/Product");
+const Category = require("../models/Category");
+const Brand = require("../models/Brand");
+const cloudinary = require("../config/cloudinary");
 
 // --- HELPER FUNCTION: Xóa file tạm của multer nếu có lỗi ---
-const fs = require('fs');
-const util = require('util');
+const fs = require("fs");
+const util = require("util");
 const unlinkFile = util.promisify(fs.unlink);
 
 const cleanupFilesOnError = (files) => {
-    const filePaths = [];
-    if (files.images) files.images.forEach(f => filePaths.push(f.path));
-    if (files.variant_images) files.variant_images.forEach(f => filePaths.push(f.path));
-    filePaths.forEach(path => unlinkFile(path).catch(err => console.error(`Failed to delete temp file: ${path}`, err)));
+  const filePaths = [];
+  if (files.images) files.images.forEach((f) => filePaths.push(f.path));
+  if (files.variant_images)
+    files.variant_images.forEach((f) => filePaths.push(f.path));
+  filePaths.forEach((path) =>
+    unlinkFile(path).catch((err) =>
+      console.error(`Failed to delete temp file: ${path}`, err)
+    )
+  );
 };
 
 // @desc    Tạo sản phẩm mới
@@ -95,67 +100,78 @@ exports.createProduct = async (req, res, next) => {
     }
 };
 
+
 // @desc    Lấy tất cả sản phẩm
 // @route   GET /api/v1/products
 // @access  Public
 exports.getProducts = async (req, res, next) => {
-    try {
-        const products = await Product.find({}).populate('category', 'name').populate('brand', 'name logo');
-        res.status(200).json({ success: true, count: products.length, data: products });
-    } catch (error) {
-        res.status(500).json({ success: false, msg: 'Lỗi server', error: error.message });
-    }
+  try {
+    const products = await Product.find({})
+      .populate("category", "name")
+      .populate("brand", "name logo");
+    res
+      .status(200)
+      .json({ success: true, count: products.length, data: products });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, msg: "Lỗi server", error: error.message });
+  }
 };
 
 // @desc    Lấy chi tiết một sản phẩm
 // @route   GET /api/v1/products/:id
 // @access  Public
 exports.getProduct = async (req, res, next) => {
-    try {
-        const product = await Product.findById(req.params.id).populate('category', 'name').populate('brand', 'name logo');
-        if (!product) {
-            return res.status(404).json({ success: false, msg: `Không tìm thấy sản phẩm` });
-        }
-        res.status(200).json({ success: true, data: product });
-    } catch (error) {
-        res.status(400).json({ success: false, msg: 'ID không hợp lệ' });
+  try {
+    const product = await Product.findById(req.params.id)
+      .populate("category", "name")
+      .populate("brand", "name logo");
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, msg: `Không tìm thấy sản phẩm` });
     }
+    res.status(200).json({ success: true, data: product });
+  } catch (error) {
+    res.status(400).json({ success: false, msg: "ID không hợp lệ" });
+  }
 };
 
 // @desc    Xóa một sản phẩm
 // @route   DELETE /api/v1/products/:id
 // @access  Private/Admin
 exports.deleteProduct = async (req, res, next) => {
-    try {
-        const product = await Product.findById(req.params.id);
-        if (!product) {
-            return res.status(404).json({ success: false, msg: `Không tìm thấy sản phẩm` });
-        }
-
-        const idsToDelete = [];
-        product.images.forEach(img => idsToDelete.push(img.cloudinary_id));
-        product.variants.forEach(variant => {
-            if (variant.image && variant.image.cloudinary_id) {
-                idsToDelete.push(variant.image.cloudinary_id);
-            }
-        });
-
-        if (idsToDelete.length > 0) {
-            await cloudinary.api.delete_resources(idsToDelete);
-        }
-
-        await product.deleteOne();
-
-        res.status(200).json({ success: true, data: {} });
-    } catch (error) {
-        res.status(500).json({ success: false, msg: 'Lỗi server', error: error.message });
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, msg: `Không tìm thấy sản phẩm` });
     }
+
+    const idsToDelete = [];
+    product.images.forEach((img) => idsToDelete.push(img.cloudinary_id));
+    product.variants.forEach((variant) => {
+      if (variant.image && variant.image.cloudinary_id) {
+        idsToDelete.push(variant.image.cloudinary_id);
+      }
+    });
+
+    if (idsToDelete.length > 0) {
+      await cloudinary.api.delete_resources(idsToDelete);
+    }
+
+    await product.deleteOne();
+
+    res.status(200).json({ success: true, data: {} });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, msg: "Lỗi server", error: error.message });
+  }
 };
 
-
-// @desc    Cập nhật một sản phẩm (Nâng cao)
-// @route   PUT /api/v1/products/:id
-// @access  Private/Admin
 exports.updateProduct = async (req, res, next) => {
     try {
         let product = await Product.findById(req.params.id);
@@ -234,59 +250,63 @@ exports.updateProduct = async (req, res, next) => {
 // @route   DELETE /api/v1/products
 // @access  Private/Admin
 exports.deleteAllProducts = async (req, res, next) => {
-    try {
-        // 1. Tìm tất cả các sản phẩm để thu thập ID ảnh
-        const products = await Product.find({});
+  try {
+    // 1. Tìm tất cả các sản phẩm để thu thập ID ảnh
+    const products = await Product.find({});
 
-        if (products.length === 0) {
-            return res.status(200).json({
-                success: true,
-                msg: 'Không có sản phẩm nào để xóa.'
-            });
-        }
-
-        // 2. Thu thập tất cả cloudinary_id từ tất cả sản phẩm
-        const allCloudinaryIds = [];
-        products.forEach(product => {
-            // Lấy ID từ ảnh chung
-            if (product.images && product.images.length > 0) {
-                product.images.forEach(img => {
-                    if (img.cloudinary_id) {
-                        allCloudinaryIds.push(img.cloudinary_id);
-                    }
-                });
-            }
-            // Lấy ID từ ảnh của các biến thể
-            if (product.variants && product.variants.length > 0) {
-                product.variants.forEach(variant => {
-                    if (variant.image && variant.image.cloudinary_id) {
-                        allCloudinaryIds.push(variant.image.cloudinary_id);
-                    }
-                });
-            }
-        });
-
-        // 3. Xóa tất cả ảnh trên Cloudinary (nếu có)
-        // Cloudinary API cho phép xóa tối đa 100 ID mỗi lần gọi. 
-        // Nếu bạn có nhiều hơn, bạn cần chia nhỏ ra.
-        if (allCloudinaryIds.length > 0) {
-            // Chia mảng ID thành các chunk nhỏ hơn 100
-            const chunkSize = 100;
-            for (let i = 0; i < allCloudinaryIds.length; i += chunkSize) {
-                const chunk = allCloudinaryIds.slice(i, i + chunkSize);
-                await cloudinary.api.delete_resources(chunk);
-            }
-        }
-
-        // 4. Xóa tất cả sản phẩm khỏi database
-        const result = await Product.deleteMany({});
-
-        res.status(200).json({
-            success: true,
-            msg: `Đã xóa thành công ${result.deletedCount} sản phẩm và các ảnh liên quan.`
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, msg: 'Lỗi server', error: error.message });
+    if (products.length === 0) {
+      return res.status(200).json({
+        success: true,
+        msg: "Không có sản phẩm nào để xóa.",
+      });
     }
+
+    // 2. Thu thập tất cả cloudinary_id từ tất cả sản phẩm
+    const allCloudinaryIds = [];
+    products.forEach((product) => {
+      // Lấy ID từ ảnh chung
+      if (product.images && product.images.length > 0) {
+        product.images.forEach((img) => {
+          if (img.cloudinary_id) {
+            allCloudinaryIds.push(img.cloudinary_id);
+          }
+        });
+      }
+      // Lấy ID từ ảnh của các biến thể
+      if (product.variants && product.variants.length > 0) {
+        product.variants.forEach((variant) => {
+          if (variant.image && variant.image.cloudinary_id) {
+            allCloudinaryIds.push(variant.image.cloudinary_id);
+          }
+        });
+      }
+    });
+
+    // 3. Xóa tất cả ảnh trên Cloudinary (nếu có)
+    // Cloudinary API cho phép xóa tối đa 100 ID mỗi lần gọi.
+    // Nếu bạn có nhiều hơn, bạn cần chia nhỏ ra.
+    if (allCloudinaryIds.length > 0) {
+      // Chia mảng ID thành các chunk nhỏ hơn 100
+      const chunkSize = 100;
+      for (let i = 0; i < allCloudinaryIds.length; i += chunkSize) {
+        const chunk = allCloudinaryIds.slice(i, i + chunkSize);
+        await cloudinary.api.delete_resources(chunk);
+      }
+    }
+
+    // 4. Xóa tất cả sản phẩm khỏi database
+    const result = await Product.deleteMany({});
+
+    res.status(200).json({
+      success: true,
+      msg: `Đã xóa thành công ${result.deletedCount} sản phẩm và các ảnh liên quan.`,
+    });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ success: false, msg: "Lỗi server", error: error.message });
+  }
 };
+
+exports.addComment = async (req, res, next) => {};

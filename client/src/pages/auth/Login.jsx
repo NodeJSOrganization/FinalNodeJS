@@ -22,14 +22,12 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
-  // State cục bộ cho input
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Lấy state từ Redux store
   const { user, isLoading, isError, isSuccess, message } = useSelector(
     (state) => state.auth
   );

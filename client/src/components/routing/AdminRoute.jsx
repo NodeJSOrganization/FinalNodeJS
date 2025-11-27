@@ -1,9 +1,8 @@
 // src/components/routing/AdminRoute.jsx
 
-import React from 'react';
-import { useSelector } from 'react-redux';
-import { Navigate, useLocation } from 'react-router-dom';
-import { Spinner } from 'react-bootstrap';
+import { useSelector } from "react-redux";
+import { Navigate, useLocation } from "react-router-dom";
+import { Spinner } from "react-bootstrap";
 
 const AdminRoute = ({ children }) => {
   const { user, isLoading } = useSelector((state) => state.auth);
@@ -19,7 +18,7 @@ const AdminRoute = ({ children }) => {
     );
   }
 
-  if (user && user.role === 'admin') {
+  if (user && user.role === "admin") {
     return children;
   }
   return <Navigate to="/login" state={{ from: location }} replace />;

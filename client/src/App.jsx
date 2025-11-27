@@ -4,9 +4,17 @@ import { useRoutes, Navigate } from "react-router-dom";
 import authRoutes from "./routes/authRoutes.jsx";
 import userRoutes from "./routes/userRoutes.jsx";
 import adminRoutes from "./routes/adminRoutes.jsx";
-import GlobalLoader from './components/GlobalLoader';
+import { useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { syncCart } from "../features/cart/cartReducer.js";
+import GlobalLoader from "./components/GlobalLoader";
 
 function App() {
+  const dispatch = useDispatch();
+  useEffect(() => {
+    dispatch(syncCart());
+  }, [dispatch]);
+
   const allRoutes = useRoutes([
     // Khi truy cập trang gốc, tự động chuyển hướng đến admin dashboard
     { path: "/", element: <Navigate to="/home" /> },
@@ -17,7 +25,13 @@ function App() {
     ...adminRoutes,
     // ...customerRoutes,
   ]);
-  return <> <GlobalLoader />{allRoutes}</>;
+  return (
+    <>
+      {" "}
+      <GlobalLoader />
+      {allRoutes}
+    </>
+  );
 }
 
 export default App;

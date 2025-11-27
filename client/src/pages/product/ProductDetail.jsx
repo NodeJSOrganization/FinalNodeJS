@@ -1,14 +1,35 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ProductSampleData } from "../../data/ProductSampleData";
+import { useNavigate, useParams } from "react-router-dom";
 import { FaShoppingCart } from "react-icons/fa";
-import { Container, Row, Col, Button, Card, Carousel } from "react-bootstrap";
-import { setCartItems } from "../../../features/cart/cartReducer";
+import {
+  Container,
+  Row,
+  Col,
+  Button,
+  Card,
+  Carousel,
+  Spinner,
+  Alert,
+} from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
+import io from "socket.io-client";
+
+import {
+  getProductStart,
+  getProductSuccess,
+  getProductFailure,
+  clearSelectedProduct,
+} from "../../../features/product/productReducer";
+import {
+  setCartItems,
+  toggleAllItems,
+} from "../../../features/cart/cartReducer";
+import { addItem, toggleItem } from "../../../features/cart/cartReducer";
+
 import ProductReviews from "../../components/product/ProductReviews";
 import RelatedProducts from "../../components/product/RelatedProduct";
 
-// CSS Styles cho component
 const VariantStyles = () => (
   <style>{`
     .option-group-label { font-weight: bold; margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.9rem; color: #555; }
@@ -29,51 +50,87 @@ const VariantStyles = () => (
 );
 
 const ProductDetail = () => {
-  const { id } = useParams();
   const dispatch = useDispatch();
+  const { id } = useParams();
   const navigate = useNavigate();
+
+  const {
+    selectedProduct,
+    isLoading,
+    error,
+    products: allProducts,
+  } = useSelector((state) => state.product);
+  const { user, token } = useSelector((state) => state.auth);
   const { cartItems } = useSelector((state) => state.cart);
 
-  const [product, setProduct] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState({});
   const [activeIndex, setActiveIndex] = useState(0);
-  const [comments, setComments] = useState([
-    {
-      id: 1,
-      user: "A Quốc",
-      rating: 5,
-      comment: "Tuyệt vời, máy chạy mượt, pin trâu!",
-    },
-    {
-      id: 2,
-      user: "B Văn",
-      rating: 5,
-      comment: "Thiết kế đẹp, mỏng nhẹ, đáng tiền.",
-    },
-  ]);
-
-  const allProducts = useSelector((state) =>
-    Object.values(state.product.products).flat()
-  );
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
-    const allProducts = Object.values(ProductSampleData).flat();
-    const foundProduct = allProducts.find((p) => p.id === id);
+    const fetchProduct = async () => {
+      if (!id) return;
+      dispatch(getProductStart());
+      try {
+        const { data } = await axios.get(`/api/v1/products/${id}`);
+        dispatch(getProductSuccess(data.data));
+      } catch (err) {
+        const errorMessage =
+          err.response?.data?.msg || "Không thể tải sản phẩm.";
+        dispatch(getProductFailure(errorMessage));
+      }
+    };
+    fetchProduct();
+    return () => {
+      dispatch(clearSelectedProduct());
+    };
+  }, [id, dispatch]);
 
-    if (foundProduct && foundProduct.variants.length > 0) {
-      setProduct(foundProduct);
+  useEffect(() => {
+    if (selectedProduct && selectedProduct.variants.length > 0) {
       setSelectedOptions({
-        color: foundProduct.variants[0].color,
-        performance: foundProduct.variants[0].performance,
+        color: selectedProduct.variants[0].color,
+        performance: selectedProduct.variants[0].performance,
       });
       setActiveIndex(0);
     }
+  }, [selectedProduct]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const socket = io("http://localhost:5000");
+    socket.on("connect", () => socket.emit("joinProductRoom", id));
+    socket.on("newReview", (newReviewData) =>
+      setReviews((prev) => [newReviewData, ...prev])
+    );
+    socket.on("reviewUpdated", (updatedReviewData) => {
+      setReviews((prev) =>
+        prev.map((r) =>
+          r._id === updatedReviewData._id ? updatedReviewData : r
+        )
+      );
+    });
+
+    const fetchReviews = async () => {
+      try {
+        const { data } = await axios.get(`/api/v1/reviews/product/${id}`);
+        setReviews(data.data || []);
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách reviews:", error);
+      }
+    };
+    fetchReviews();
+
+    return () => {
+      socket.disconnect();
+    };
   }, [id]);
 
   const availableOptions = useMemo(() => {
-    if (!product) return {};
+    if (!selectedProduct) return { color: [], performance: [] };
     const options = { color: new Set(), performance: new Set() };
-    product.variants.forEach((variant) => {
+    selectedProduct.variants.forEach((variant) => {
       options.color.add(variant.color);
       options.performance.add(variant.performance);
     });
@@ -81,18 +138,43 @@ const ProductDetail = () => {
       color: Array.from(options.color),
       performance: Array.from(options.performance),
     };
-  }, [product]);
+  }, [selectedProduct]);
+
+  const currentVariant = useMemo(() => {
+    if (
+      !selectedProduct ||
+      !selectedOptions.color ||
+      !selectedOptions.performance
+    ) {
+      return null;
+    }
+    return selectedProduct.variants.find(
+      (variant) =>
+        variant.color === selectedOptions.color &&
+        variant.performance === selectedOptions.performance
+    );
+  }, [selectedProduct, selectedOptions]);
+
+  const allImages = useMemo(() => {
+    if (!selectedProduct) return [];
+    const mainImages = selectedProduct.images.map((img) => img.url);
+    const variantImages = selectedProduct.variants
+      .map((v) => v.image?.url)
+      .filter(Boolean);
+    return [...new Set([...mainImages, ...variantImages])];
+  }, [selectedProduct]);
 
   const relatedProducts = useMemo(() => {
-    if (!product || allProducts.length === 0) return [];
-
+    if (!selectedProduct || !allProducts || allProducts.length === 0) return [];
     return allProducts.filter(
-      (p) => p.brand === product.brand && p.id !== product.id
+      (p) =>
+        p.brand?._id === selectedProduct.brand?._id &&
+        p._id !== selectedProduct._id
     );
-  }, [product, allProducts]);
+  }, [selectedProduct, allProducts]);
 
   const handleOptionSelect = (optionKey, value) => {
-    const newVariant = product.variants.find(
+    const newVariant = selectedProduct.variants.find(
       (variant) => variant[optionKey] === value
     );
 
@@ -104,92 +186,118 @@ const ProductDetail = () => {
     }
   };
 
-  const currentVariant = useMemo(() => {
-    if (!product || Object.keys(selectedOptions).length === 0) return null;
+  const handleAddComment = async (reviewData) => {
+    try {
+      const config = { headers: { "Content-Type": "application/json" } };
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+      await axios.post(`/api/v1/reviews/product/${id}`, reviewData, config);
+    } catch (error) {
+      console.error("Lỗi khi thêm review:", error);
+      throw error;
+    }
+  };
 
-    return product.variants.find(
-      (variant) =>
-        variant.color === selectedOptions.color &&
-        variant.performance === selectedOptions.performance
-    );
-  }, [product, selectedOptions]);
+  const createItemData = () => {
+    if (!currentVariant) return null;
 
-  const allImages = useMemo(() => {
-    if (!product) return [];
-    const variantImages = product.variants.map((v) => v.image);
-    return [...new Set([...product.images, ...variantImages])];
-  }, [product]);
+    return {
+      // Dữ liệu cần cho API (nếu đã đăng nhập)
+      productId: selectedProduct._id,
+      variantId: currentVariant._id,
+      quantity: 1,
+
+      // Dữ liệu đầy đủ cần cho localStorage (nếu là khách)
+      productSnapshot: {
+        _id: selectedProduct._id,
+        name: selectedProduct.name,
+        images: selectedProduct.images,
+      },
+      variantSnapshot: {
+        _id: currentVariant._id,
+        name: selectedProduct.name,
+        variantName: `${currentVariant.color} - ${currentVariant.performance}`,
+        image: currentVariant.image?.url,
+        price: currentVariant.sellingPrice,
+        sku: currentVariant.sku,
+      },
+    };
+  };
 
   const handleAddVariantToCart = () => {
-    if (!currentVariant) return;
-    const cartItemToAdd = {
-      productId: product.id,
-      variantId: currentVariant.id,
-      name: product.name,
-      image: currentVariant.image,
-      variantName: `${currentVariant.color} - ${currentVariant.performance}`,
-      price: currentVariant.sellingPrice,
-      quantity: 1,
-      checked: false,
-    };
-    const existingItem = cartItems.find(
-      (item) => item.variantId === cartItemToAdd.variantId
-    );
-    const updatedCartItems = existingItem
-      ? cartItems.map((item) =>
-          item.variantId === existingItem.variantId
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      : [...cartItems, cartItemToAdd];
-    dispatch(setCartItems(updatedCartItems));
-    alert(
-      `Đã thêm "${cartItemToAdd.name} - ${cartItemToAdd.variantName}" vào giỏ hàng!`
-    );
+    const itemData = createItemData(); // Gọi hàm helper
+    if (!itemData) {
+      alert("Vui lòng chọn đầy đủ cấu hình sản phẩm.");
+      return;
+    }
+
+    dispatch(addItem(itemData))
+      .unwrap()
+      .then(() => {
+        alert(`Đã thêm vào giỏ hàng!`);
+      })
+      .catch((errorMsg) => {
+        alert(`Lỗi: ${errorMsg}`);
+      });
   };
 
   const handleBuyNow = () => {
-    if (!currentVariant) return;
-    const cartItemToAdd = {
-      productId: product.id,
-      variantId: currentVariant.id,
-      name: product.name,
-      image: currentVariant.image,
-      variantName: `${currentVariant.color} - ${currentVariant.performance}`,
-      price: currentVariant.sellingPrice,
-      quantity: 1,
-      checked: true,
-    };
-    const otherItems = cartItems.map((item) => ({ ...item, checked: false }));
-    const existingItemIndex = otherItems.findIndex(
-      (item) => item.variantId === cartItemToAdd.variantId
-    );
-    let updatedCartItems;
-    if (existingItemIndex !== -1) {
-      updatedCartItems = otherItems.map((item, index) =>
-        index === existingItemIndex
-          ? { ...item, quantity: item.quantity + 1, checked: true }
-          : item
-      );
-    } else {
-      updatedCartItems = [...otherItems, cartItemToAdd];
+    const itemData = createItemData();
+    if (!itemData) {
+      alert("Vui lòng chọn đầy đủ cấu hình sản phẩm.");
+      return;
     }
-    dispatch(setCartItems(updatedCartItems));
-    navigate("/cart");
-  };
 
-  const handleAddComment = (newReview) => {
-    setComments((prevComments) => [newReview, ...prevComments]);
+    dispatch(addItem(itemData))
+      .unwrap()
+      .then(() => {
+        // BƯỚC 2: Điều hướng đến trang giỏ hàng và "gửi kèm" thông tin
+        // về variantId cần được tick.
+        navigate("/cart", { state: { checkoutVariantId: currentVariant._id } });
+      })
+      .catch((errorMsg) => {
+        alert(`Lỗi: ${errorMsg}`);
+      });
   };
 
   const getColorImage = (color) => {
-    const variantWithColor = product.variants.find((v) => v.color === color);
-    return variantWithColor ? variantWithColor.image : "";
+    const variantWithColor = selectedProduct.variants.find(
+      (v) => v.color === color
+    );
+    return variantWithColor ? variantWithColor.image.url : "";
   };
 
-  if (!product || !currentVariant) {
+  if (isLoading) {
     return (
-      <Container className="py-4 text-center">Đang tải sản phẩm...</Container>
+      <Container
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "80vh" }}
+      >
+        <Spinner animation="border" role="status" variant="primary">
+          <span className="visually-hidden">Đang tải...</span>
+        </Spinner>
+        <p className="ms-3 mb-0">Đang tải sản phẩm...</p>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container className="py-5">
+        <Alert variant="danger">Lỗi: {error}</Alert>
+      </Container>
+    );
+  }
+
+  if (!selectedProduct || !currentVariant) {
+    return (
+      <Container
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "80vh" }}
+      >
+        <Spinner animation="border" variant="secondary" />
+      </Container>
     );
   }
 
@@ -206,7 +314,7 @@ const ProductDetail = () => {
                 interval={null}
               >
                 {allImages.map((img, idx) => (
-                  <Carousel.Item key={idx}>
+                  <Carousel.Item key={`${img}-${idx}`}>
                     <img
                       className="d-block w-100"
                       src={img}
@@ -220,7 +328,7 @@ const ProductDetail = () => {
             <div className="thumbnails-container">
               {allImages.map((img, idx) => (
                 <img
-                  key={idx}
+                  key={`${img}-thumb-${idx}`}
                   src={img}
                   alt={`Thumbnail ${idx + 1}`}
                   className={`thumbnail-img ${
@@ -233,15 +341,17 @@ const ProductDetail = () => {
           </Col>
 
           <Col md={6}>
-            <h2>{product.name}</h2>
+            <h2>{selectedProduct.name}</h2>
             <p className="text-muted">{currentVariant.performance}</p>
             <div className="price-box p-3 my-3">
               <span className="main-price">
                 {currentVariant.sellingPrice.toLocaleString("vi-VN")}đ
               </span>
-              <span className="original-price ms-2">
-                {currentVariant.costPrice.toLocaleString("vi-VN")}đ
-              </span>
+              {currentVariant.costPrice > currentVariant.sellingPrice && (
+                <span className="original-price ms-2">
+                  {currentVariant.costPrice.toLocaleString("vi-VN")}đ
+                </span>
+              )}
             </div>
             <div className="border p-3 rounded">
               <h5 className="mb-3">Lựa chọn cấu hình</h5>
@@ -276,7 +386,9 @@ const ProductDetail = () => {
             <p className="mt-3">
               <strong>Mô tả:</strong>
             </p>
-            <p>{product.description}</p>
+            <p style={{ whiteSpace: "pre-wrap" }}>
+              {selectedProduct.description}
+            </p>
             <div className="d-flex gap-3 mt-3">
               <Button
                 variant="outline-primary"
@@ -304,9 +416,10 @@ const ProductDetail = () => {
         <RelatedProducts products={relatedProducts} />
 
         <ProductReviews
-          reviews={comments}
-          productName={product.name}
+          reviews={reviews}
+          productName={selectedProduct.name}
           onAddReview={handleAddComment}
+          user={user}
         />
       </Container>
     </>

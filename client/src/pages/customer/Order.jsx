@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -13,33 +13,46 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-import AddressSelector from "../../components/product/AddressSelector";
+// Import các actions cần thiết từ orderSlice
 import {
+  saveShippingInfo,
+  saveCustomerInfo,
   fetchProvinces,
   updateShippingInfo,
 } from "../../../features/order/orderReducer";
 
+import AddressSelector from "../../components/product/AddressSelector";
+
+// Helper định dạng tiền tệ
 const currency = (v) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     Math.max(0, Number(v) || 0)
   );
-const POINT_TO_VND = 1000;
 
 export default function OrderPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { cartItems, selectedVoucher, usePoints } = useSelector(
-    (state) => state.cart
-  );
-  const { currentUser, isAuthenticated } = useSelector((state) => state.user);
-  const { shippingInfo } = useSelector((state) => state.order);
+  // --- Lấy dữ liệu chính từ Redux ---
+  const {
+    orderItems,
+    summary,
+    shippingInfo: reduxShippingInfo,
+  } = useSelector((state) => state.order);
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
 
   const [formError, setFormError] = useState("");
+  // `customerInfo` chỉ dành cho khách, người đã đăng nhập sẽ dùng thông tin từ `user`
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     email: "",
     phone: "",
+  });
+  const [receiverInfo, setReceiverInfo] = useState({
+    receiverName: "",
+    receiverPhone: "",
+    detail: "",
+    note: "",
   });
 
   useEffect(() => {
@@ -47,84 +60,98 @@ export default function OrderPage() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (isAuthenticated && currentUser) {
+    // Tự động điền thông tin người nhận hàng từ thông tin user đã đăng nhập
+    if (isAuthenticated && user) {
       setCustomerInfo({
-        name: currentUser.name || "",
-        email: currentUser.email || "",
-        phone: currentUser.phone || "",
+        name: user.fullName || "",
+        email: user.email || "",
+        phone: user.phoneNumber || "",
       });
-      dispatch(
-        updateShippingInfo({
-          field: "receiverName",
-          value: currentUser.name || "",
-        })
-      );
-      dispatch(
-        updateShippingInfo({
-          field: "receiverPhone",
-          value: currentUser.phone || "",
-        })
-      );
+
+      setReceiverInfo((prev) => ({
+        ...prev,
+        receiverName: user.fullName || "",
+        receiverPhone: user.phoneNumber || "",
+        detail: user.address?.streetAddress || "",
+      }));
+      if (user.address) {
+        const { province, district, ward } = user.address;
+
+        // Dispatch để cập nhật Tỉnh/Thành phố vào Redux
+        // Component AddressSelector sẽ dựa vào đây để hiển thị
+        if (province) {
+          dispatch(
+            updateShippingInfo({ field: "provinceName", value: province })
+          );
+        }
+        // Tương tự cho Quận/Huyện và Phường/Xã
+        if (district) {
+          dispatch(
+            updateShippingInfo({ field: "districtName", value: district })
+          );
+        }
+        if (ward) {
+          dispatch(updateShippingInfo({ field: "wardName", value: ward }));
+        }
+        // Ghi chú: Component AddressSelector của bạn cần được thiết kế để
+        // có thể nhận và hiển thị các giá trị mặc định này.
+      }
     }
-  }, [isAuthenticated, currentUser, dispatch]);
+  }, [isAuthenticated, user]);
 
-  const selectedCartItems = useMemo(
-    () => cartItems.filter((item) => item.checked),
-    [cartItems]
-  );
-
+  // Kiểm tra nếu không có sản phẩm thì quay về giỏ hàng
   useEffect(() => {
-    if (selectedCartItems.length === 0) {
+    // Thêm điều kiện `!summary` để chắc chắn dữ liệu đã được khởi tạo
+    if (!summary || orderItems.length === 0) {
       navigate("/cart", {
         replace: true,
-        state: { message: "Vui lòng chọn sản phẩm để tiến hành đặt hàng." },
+        state: { message: "Vui lòng chọn sản phẩm để đặt hàng." },
       });
     }
-  }, []);
+  }, [orderItems, summary, navigate]);
 
-  const [userPoints] = useState(458);
-  const selectedSubtotal = useMemo(
-    () => selectedCartItems.reduce((s, it) => s + it.price * it.quantity, 0),
-    [selectedCartItems]
-  );
-  const voucherDiscount = useMemo(() => {
-    if (!selectedVoucher) return 0;
-    if (selectedVoucher.discountType === "AMOUNT") {
-      return Math.min(selectedVoucher.discountValue, selectedSubtotal);
-    }
-    return Math.floor((selectedSubtotal * selectedVoucher.discountValue) / 100);
-  }, [selectedVoucher, selectedSubtotal]);
-  const pointBalanceVnd = userPoints * POINT_TO_VND;
-  const pointsAppliedVnd = useMemo(() => {
-    if (!usePoints) return 0;
-    const remainAfterVoucher = Math.max(0, selectedSubtotal - voucherDiscount);
-    return Math.min(pointBalanceVnd, remainAfterVoucher);
-  }, [usePoints, pointBalanceVnd, selectedSubtotal, voucherDiscount]);
-  const savings = voucherDiscount + pointsAppliedVnd;
-  const payable = Math.max(0, selectedSubtotal - savings);
-
+  // --- Handlers ---
   const handleCustomerInfoChange = (e) => {
-    const { name, value } = e.target;
-    setCustomerInfo((prev) => ({ ...prev, [name]: value }));
+    setCustomerInfo((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleDirectShippingInfoChange = (e) => {
-    const { name, value } = e.target;
-    dispatch(updateShippingInfo({ field: name, value }));
+  const handleReceiverInfoChange = (e) => {
+    setReceiverInfo((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleProceedToPayment = (e) => {
     e.preventDefault();
+
+    // Lấy thông tin Tỉnh/Huyện/Xã từ Redux (do component AddressSelector cập nhật)
+    const {
+      provinceCode,
+      provinceName,
+      districtCode,
+      districtName,
+      wardCode,
+      wardName,
+    } = reduxShippingInfo;
+
+    // Gộp thông tin khách hàng: ưu tiên user đã đăng nhập, nếu là khách thì lấy từ form
+    const finalCustomerInfo = isAuthenticated
+      ? {
+          name: user.fullName,
+          email: user.email,
+          phone: user.phoneNumber,
+        }
+      : customerInfo;
+
+    // Validation
     if (
-      !customerInfo.name.trim() ||
-      !customerInfo.email.trim() ||
-      !customerInfo.phone.trim() ||
-      !shippingInfo.receiverName.trim() ||
-      !shippingInfo.receiverPhone.trim() ||
-      !shippingInfo.provinceCode ||
-      !shippingInfo.districtCode ||
-      !shippingInfo.wardCode ||
-      !shippingInfo.detail.trim()
+      !finalCustomerInfo.name.trim() ||
+      !finalCustomerInfo.email.trim() ||
+      !finalCustomerInfo.phone.trim() ||
+      !receiverInfo.receiverName.trim() ||
+      !receiverInfo.receiverPhone.trim() ||
+      !provinceCode ||
+      !districtCode ||
+      !wardCode ||
+      !receiverInfo.detail.trim()
     ) {
       setFormError("Vui lòng điền đầy đủ các thông tin bắt buộc (*).");
       window.scrollTo(0, 0);
@@ -132,25 +159,34 @@ export default function OrderPage() {
     }
     setFormError("");
 
-    const fullAddress = `${shippingInfo.detail}, ${shippingInfo.wardName}, ${shippingInfo.districtName}, ${shippingInfo.provinceName}`;
+    const fullAddress = `${receiverInfo.detail}, ${wardName}, ${districtName}, ${provinceName}`;
 
-    navigate("/payment", {
-      state: {
-        orderItems: selectedCartItems,
-        customerInfo,
-        shippingInfo: { ...shippingInfo, fullAddress },
-        subtotal: selectedSubtotal,
-        savings,
-        payable,
-      },
-    });
+    const finalShippingInfo = {
+      ...receiverInfo,
+      provinceCode,
+      provinceName,
+      districtCode,
+      districtName,
+      wardCode,
+      wardName,
+      fullAddress,
+    };
+
+    // **BƯỚC QUAN TRỌNG:**
+    // 1. Lưu thông tin khách hàng vào Redux
+    dispatch(saveCustomerInfo(finalCustomerInfo));
+    // 2. Lưu thông tin giao hàng vào Redux
+    dispatch(saveShippingInfo(finalShippingInfo));
+    // 3. Điều hướng
+    navigate("/payment");
   };
 
-  if (selectedCartItems.length === 0) return null;
+  // Vẫn cần kiểm tra này để tránh lỗi render trong khoảnh khắc đầu tiên
+  if (!orderItems || orderItems.length === 0) return null;
 
   return (
     <Container className="py-4">
-      <h2 className="mb-4 text-center">Xác nhận Đặt hàng</h2>
+      <h2 className="mb-4 text-center">Xác nhận đặt hàng</h2>
       <Form onSubmit={handleProceedToPayment}>
         <Row className="g-4">
           <Col md={7}>
@@ -165,8 +201,10 @@ export default function OrderPage() {
                   <Form.Control
                     type="text"
                     name="name"
-                    value={customerInfo.name}
+                    value={isAuthenticated ? user.fullName : customerInfo.name}
                     onChange={handleCustomerInfoChange}
+                    readOnly={isAuthenticated}
+                    required
                   />
                 </Form.Group>
                 <Form.Group className="mb-3">
@@ -176,8 +214,10 @@ export default function OrderPage() {
                   <Form.Control
                     type="email"
                     name="email"
-                    value={customerInfo.email}
+                    value={isAuthenticated ? user.email : customerInfo.email}
                     onChange={handleCustomerInfoChange}
+                    readOnly={isAuthenticated}
+                    required
                   />
                 </Form.Group>
                 <Form.Group className="mb-3">
@@ -187,8 +227,12 @@ export default function OrderPage() {
                   <Form.Control
                     type="tel"
                     name="phone"
-                    value={customerInfo.phone}
+                    value={
+                      isAuthenticated ? user.phoneNumber : customerInfo.phone
+                    }
                     onChange={handleCustomerInfoChange}
+                    readOnly={isAuthenticated}
+                    required
                   />
                 </Form.Group>
               </Card.Body>
@@ -204,8 +248,9 @@ export default function OrderPage() {
                   <Form.Control
                     type="text"
                     name="receiverName"
-                    value={shippingInfo.receiverName}
-                    onChange={handleDirectShippingInfoChange}
+                    value={receiverInfo.receiverName}
+                    onChange={handleReceiverInfoChange}
+                    required
                   />
                 </Form.Group>
                 <Form.Group className="mb-3">
@@ -216,22 +261,34 @@ export default function OrderPage() {
                   <Form.Control
                     type="tel"
                     name="receiverPhone"
-                    value={shippingInfo.receiverPhone}
-                    onChange={handleDirectShippingInfoChange}
+                    value={receiverInfo.receiverPhone}
+                    onChange={handleReceiverInfoChange}
+                    required
                   />
                 </Form.Group>
-
-                {/* Component chọn địa chỉ chuyên dụng */}
                 <AddressSelector />
-
+                <Form.Group className="mt-3">
+                  <Form.Label>
+                    Địa chỉ chi tiết (Số nhà, tên đường...){" "}
+                    <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="detail"
+                    value={receiverInfo.detail}
+                    onChange={handleReceiverInfoChange}
+                    placeholder="Ví dụ: 123 Đường ABC"
+                    required
+                  />
+                </Form.Group>
                 <Form.Group className="mt-3">
                   <Form.Label>Ghi chú (tùy chọn)</Form.Label>
                   <Form.Control
                     as="textarea"
                     rows={2}
                     name="note"
-                    value={shippingInfo.note}
-                    onChange={handleDirectShippingInfoChange}
+                    value={receiverInfo.note}
+                    onChange={handleReceiverInfoChange}
                   />
                 </Form.Group>
               </Card.Body>
@@ -241,19 +298,19 @@ export default function OrderPage() {
           <Col md={5}>
             <Card className="mb-4 shadow-sm sticky-top" style={{ top: "20px" }}>
               <Card.Header as="h5">
-                Sản phẩm đã chọn ({selectedCartItems.length})
+                Sản phẩm đã chọn ({orderItems.length})
               </Card.Header>
               <ListGroup
                 variant="flush"
                 style={{ maxHeight: "300px", overflowY: "auto" }}
               >
-                {selectedCartItems.map((item) => (
+                {orderItems.map((item) => (
                   <ListGroup.Item
-                    key={item.variantId}
+                    key={item.variant._id}
                     className="d-flex align-items-center"
                   >
                     <Image
-                      src={item.image}
+                      src={item.variant.image}
                       style={{
                         width: "60px",
                         height: "60px",
@@ -262,16 +319,13 @@ export default function OrderPage() {
                       rounded
                     />
                     <div className="ms-3 flex-grow-1">
-                      <div className="fw-semibold">{item.name}</div>
-                      <div className="text-muted small">
-                        Phân loại: {item.variantName}
-                      </div>
+                      <div className="fw-semibold">{item.variant.name}</div>
                       <div className="text-muted small">
                         Số lượng: {item.quantity}
                       </div>
                     </div>
                     <div className="fw-semibold">
-                      {currency(item.price * item.quantity)}
+                      {currency(item.variant.price * item.quantity)}
                     </div>
                   </ListGroup.Item>
                 ))}
@@ -279,18 +333,25 @@ export default function OrderPage() {
               <Card.Body>
                 <div className="d-flex justify-content-between mb-2">
                   <span>Tạm tính</span>
-                  <span>{currency(selectedSubtotal)}</span>
+                  <span>{currency(summary.subtotal)}</span>
                 </div>
-                {savings > 0 && (
+                {summary.voucherDiscount + summary.pointsDiscount > 0 && (
                   <div className="d-flex justify-content-between mb-2 text-danger">
                     <span>Giảm giá</span>
-                    <span>-{currency(savings)}</span>
+                    <span>
+                      -
+                      {currency(
+                        summary.voucherDiscount + summary.pointsDiscount
+                      )}
+                    </span>
                   </div>
                 )}
                 <hr />
                 <div className="d-flex justify-content-between fw-semibold fs-5 mb-3">
                   <span>Tổng cộng</span>
-                  <span className="text-danger">{currency(payable)}</span>
+                  <span className="text-danger">
+                    {currency(summary.finalTotal)}
+                  </span>
                 </div>
                 <Button variant="danger" type="submit" className="w-100 py-2">
                   Tiến hành Thanh toán

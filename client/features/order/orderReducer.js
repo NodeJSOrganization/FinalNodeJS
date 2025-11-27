@@ -39,7 +39,39 @@ export const fetchWards = createAsyncThunk(
   }
 );
 
+export const createOrder = createAsyncThunk(
+  "order/createOrder",
+  async (orderData, thunkAPI) => {
+    try {
+      const { token } = thunkAPI.getState().auth;
+      const config = { headers: { "Content-Type": "application/json" } };
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+      const response = await axios.post("/api/v1/orders", orderData, config);
+      return response.data.data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.msg || "Lỗi khi tạo đơn hàng"
+      );
+    }
+  }
+);
+
 const initialState = {
+  customerInfo: null,
+  createdOrder: null,
+  orderItems: [],
+  summary: {
+    subtotal: 0,
+    shippingFee: 0,
+    voucherDiscount: 0,
+    pointsDiscount: 0,
+    finalTotal: 0,
+  },
+  selectedVoucher: null,
+  usePoints: false,
+
   shippingInfo: {
     receiverName: "",
     receiverPhone: "",
@@ -67,6 +99,31 @@ const orderSlice = createSlice({
   name: "order",
   initialState,
   reducers: {
+    createOrderSummary: (state, action) => {
+      const {
+        orderItems,
+        subtotal,
+        voucherDiscount,
+        pointsDiscount,
+        finalTotal,
+        selectedVoucher,
+        usePoints,
+      } = action.payload;
+      state.orderItems = orderItems;
+      state.summary = {
+        ...state.summary,
+        subtotal,
+        voucherDiscount,
+        pointsDiscount,
+        finalTotal,
+      };
+      state.selectedVoucher = selectedVoucher;
+      state.usePoints = usePoints;
+    },
+    saveCustomerInfo: (state, action) => {
+      state.customerInfo = action.payload;
+    },
+
     updateShippingInfo: (state, action) => {
       const { field, value } = action.payload;
       state.shippingInfo[field] = value;
@@ -87,6 +144,10 @@ const orderSlice = createSlice({
       state.wards = [];
     },
     clearOrderDetails: () => initialState,
+    saveShippingInfo: (state, action) => {
+      // action.payload sẽ là một object chứa receiverName, receiverPhone, fullAddress, ...
+      state.shippingInfo = { ...state.shippingInfo, ...action.payload };
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -122,15 +183,29 @@ const orderSlice = createSlice({
       .addCase(fetchWards.rejected, (state, action) => {
         state.status.wards = "failed";
         state.error = action.payload;
+      })
+      .addCase(createOrder.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(createOrder.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.createdOrder = action.payload; // Lưu đơn hàng thành công
+      })
+      .addCase(createOrder.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
       });
   },
 });
 
 export const {
+  saveShippingInfo,
+  createOrderSummary,
   updateShippingInfo,
   resetDistrictAndWard,
   resetWard,
   clearOrderDetails,
+  saveCustomerInfo,
 } = orderSlice.actions;
 
 export default orderSlice.reducer;

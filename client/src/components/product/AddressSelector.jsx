@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Row, Col, Form } from "react-bootstrap";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -10,13 +11,73 @@ import {
 
 export default function AddressSelector() {
   const dispatch = useDispatch();
-  const orderState = useSelector((state) => state.order);
 
-  if (!orderState) {
-    return null;
-  }
+  const { shippingInfo, provinces, districts, wards, status } = useSelector(
+    (state) => state.order
+  );
 
-  const { shippingInfo, provinces, districts, wards, status } = orderState;
+  useEffect(() => {
+    if (
+      shippingInfo.provinceName &&
+      provinces.length > 0 &&
+      !shippingInfo.provinceCode
+    ) {
+      const selectedProvince = provinces.find(
+        (p) => p.name === shippingInfo.provinceName
+      );
+      if (selectedProvince) {
+        dispatch(
+          updateShippingInfo({
+            field: "provinceCode",
+            value: selectedProvince.code,
+          })
+        );
+        dispatch(fetchDistricts(selectedProvince.code));
+      }
+    }
+  }, [
+    shippingInfo.provinceName,
+    provinces,
+    dispatch,
+    shippingInfo.provinceCode,
+  ]);
+
+  useEffect(() => {
+    if (
+      shippingInfo.districtName &&
+      districts.length > 0 &&
+      !shippingInfo.districtCode
+    ) {
+      const selectedDistrict = districts.find(
+        (d) => d.name === shippingInfo.districtName
+      );
+      if (selectedDistrict) {
+        dispatch(
+          updateShippingInfo({
+            field: "districtCode",
+            value: selectedDistrict.code,
+          })
+        );
+        dispatch(fetchWards(selectedDistrict.code));
+      }
+    }
+  }, [
+    shippingInfo.districtName,
+    districts,
+    dispatch,
+    shippingInfo.districtCode,
+  ]);
+
+  useEffect(() => {
+    if (shippingInfo.wardName && wards.length > 0 && !shippingInfo.wardCode) {
+      const selectedWard = wards.find((w) => w.name === shippingInfo.wardName);
+      if (selectedWard) {
+        dispatch(
+          updateShippingInfo({ field: "wardCode", value: selectedWard.code })
+        );
+      }
+    }
+  }, [shippingInfo.wardName, wards, dispatch, shippingInfo.wardCode]);
 
   const handleProvinceChange = (e) => {
     const provinceCode = e.target.value;
@@ -42,7 +103,7 @@ export default function AddressSelector() {
       ? e.target.options[e.target.selectedIndex].text
       : "";
 
-    dispatch(resetWard());
+    dispatch(resetWard()); // Reset cấp dưới khi đổi huyện
     dispatch(
       updateShippingInfo({ field: "districtCode", value: districtCode })
     );
@@ -63,10 +124,6 @@ export default function AddressSelector() {
     dispatch(updateShippingInfo({ field: "wardName", value: wardName }));
   };
 
-  const handleDetailChange = (e) => {
-    dispatch(updateShippingInfo({ field: "detail", value: e.target.value }));
-  };
-
   return (
     <Row className="g-3">
       <Col md={4}>
@@ -75,7 +132,7 @@ export default function AddressSelector() {
             Tỉnh/Thành phố <span className="text-danger">*</span>
           </Form.Label>
           <Form.Select
-            value={shippingInfo.provinceCode}
+            value={shippingInfo.provinceCode || ""}
             onChange={handleProvinceChange}
             disabled={status.provinces === "loading"}
           >
@@ -98,7 +155,7 @@ export default function AddressSelector() {
             Quận/Huyện <span className="text-danger">*</span>
           </Form.Label>
           <Form.Select
-            value={shippingInfo.districtCode}
+            value={shippingInfo.districtCode || ""}
             onChange={handleDistrictChange}
             disabled={
               !shippingInfo.provinceCode || status.districts === "loading"
@@ -123,7 +180,7 @@ export default function AddressSelector() {
             Phường/Xã <span className="text-danger">*</span>
           </Form.Label>
           <Form.Select
-            value={shippingInfo.wardCode}
+            value={shippingInfo.wardCode || ""}
             onChange={handleWardChange}
             disabled={!shippingInfo.districtCode || status.wards === "loading"}
           >
@@ -138,21 +195,6 @@ export default function AddressSelector() {
               </option>
             ))}
           </Form.Select>
-        </Form.Group>
-      </Col>
-      <Col xs={12}>
-        <Form.Group>
-          <Form.Label>
-            Địa chỉ chi tiết (Số nhà, tên đường...){" "}
-            <span className="text-danger">*</span>
-          </Form.Label>
-          <Form.Control
-            type="text"
-            placeholder="Ví dụ: 123 Đường ABC"
-            value={shippingInfo.detail}
-            onChange={handleDetailChange}
-            disabled={!shippingInfo.wardCode}
-          />
         </Form.Group>
       </Col>
     </Row>

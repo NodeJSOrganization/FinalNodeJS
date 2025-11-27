@@ -11,16 +11,16 @@ import {
   Card,
   Form,
 } from "react-bootstrap";
-import { ProductSampleData } from "../../data/ProductSampleData";
 import { useDispatch, useSelector } from "react-redux";
 import { setProducts } from "../../../features/product/productReducer";
 import ProductItem from "../../components/product/ProductItem";
+import axios from "axios";
 
 const filters = [
   { key: "all", label: "Tất cả sản phẩm" },
-  { key: "laptops", label: "Laptop" },
-  { key: "monitors", label: "Màn hình" },
-  { key: "hard-drives", label: "Ổ cứng" },
+  { key: "Laptop", label: "Laptop" },
+  { key: "Màn hình", label: "Màn hình" },
+  { key: "Ram", label: "Ổ cứng" },
 ];
 
 const ProductCatalog = () => {
@@ -28,7 +28,7 @@ const ProductCatalog = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { category: categoryFromUrl } = useParams();
+  const { category } = useParams();
 
   const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,20 +39,31 @@ const ProductCatalog = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: Infinity });
 
   const uniqueBrands = useMemo(
-    () => [...new Set(allProducts.map((product) => product.brand))],
+    () => [...new Set(allProducts.map((product) => product.brand.name))],
     [allProducts]
   );
 
   useEffect(() => {
-    if (allProducts.length === 0) {
-      const allProductsData = Object.values(ProductSampleData).flat();
-      dispatch(setProducts(allProductsData));
-    }
-  }, [dispatch, allProducts.length]);
+    const fetchProducts = async () => {
+      try {
+        const { data } = await axios.get("/api/v1/products");
+        dispatch(setProducts(data.data));
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   useEffect(() => {
-    setActiveFilter(categoryFromUrl || "all");
-  }, [categoryFromUrl]);
+    const filterKeyFromPath = category || "all";
+    if (filters.some((f) => f.key === filterKeyFromPath)) {
+      setActiveFilter(filterKeyFromPath);
+    } else {
+      setActiveFilter("all");
+      navigate("/products");
+    }
+  }, [category, navigate]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -62,13 +73,11 @@ const ProductCatalog = () => {
     let products = [...allProducts];
 
     if (activeFilter !== "all") {
-      const categoryToFilter = filters.find(
-        (f) => f.key === activeFilter
-      )?.label;
+      const categoryToFilter = filters.find((f) => f.key === activeFilter)?.key;
 
       if (categoryToFilter) {
         products = products.filter(
-          (product) => product.category === categoryToFilter
+          (product) => product.category.name === categoryToFilter
         );
       } else {
         products = [];
@@ -82,7 +91,9 @@ const ProductCatalog = () => {
     }
 
     if (selectedBrand) {
-      products = products.filter((product) => product.brand === selectedBrand);
+      products = products.filter(
+        (product) => product.brand.name === selectedBrand
+      );
     }
 
     products = products.filter((product) => {
@@ -197,7 +208,7 @@ const ProductCatalog = () => {
           >
             <option value="">Tất cả thương hiệu</option>
             {uniqueBrands.map((brand) => (
-              <option key={brand} value={brand}>
+              <option key={brand._id} value={brand.name}>
                 {brand}
               </option>
             ))}
@@ -240,10 +251,10 @@ const ProductCatalog = () => {
       >
         {currentProducts.length > 0 ? (
           currentProducts.map((product) => (
-            <Col key={product.id}>
+            <Col key={product._id}>
               <ProductItem
                 product={product}
-                category={product.category}
+                category={product.category.name}
                 viewMode={viewMode}
               />
             </Col>
