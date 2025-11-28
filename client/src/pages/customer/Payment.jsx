@@ -31,11 +31,11 @@ const paymentMethods = [
     name: "Thanh toán khi nhận hàng (COD)",
     description: "Trả tiền mặt trực tiếp cho nhân viên giao hàng.",
   },
-  {
-    id: "momo",
-    name: "Ví điện tử Momo",
-    description: "Thanh toán an toàn và nhanh chóng qua ứng dụng Momo.",
-  },
+  // {
+  //   id: "momo",
+  //   name: "Ví điện tử Momo",
+  //   description: "Thanh toán an toàn và nhanh chóng qua ứng dụng Momo.",
+  // },
   {
     id: "vnpay",
     name: "Cổng thanh toán VNPAY",
