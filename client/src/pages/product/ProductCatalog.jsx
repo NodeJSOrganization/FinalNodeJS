@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FaTh, FaList } from "react-icons/fa";
 import {
   Container,
@@ -18,24 +18,14 @@ import { setProducts } from "../../../features/product/productReducer";
 import ProductItem from "../../components/product/ProductItem";
 import axios from "axios";
 
-// Loại bỏ mảng filters gán cứng
-/*
-const filters = [
-  { key: "all", label: "Tất cả sản phẩm" },
-  { key: "Laptop", label: "Laptop" },
-  { key: "Màn hình", label: "Màn hình" },
-  { key: "Ram", label: "Ổ cứng" },
-];
-*/
-
 const ProductCatalog = () => {
   const allProducts = useSelector((state) => state.product.products);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { category } = useParams();
+  const [searchParams] = useSearchParams();
+  const categoryNameFromUrl = searchParams.get("categoryName") || "all";
 
-  // State mới cho danh mục động
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,7 +38,6 @@ const ProductCatalog = () => {
   const [selectedBrand, setSelectedBrand] = useState("");
   const [priceRange, setPriceRange] = useState({ min: 0, max: Infinity });
 
-  // 1. Lấy danh sách danh mục và sản phẩm
   useEffect(() => {
     const fetchCatalogData = async () => {
       setIsLoading(true);
@@ -61,9 +50,8 @@ const ProductCatalog = () => {
 
         dispatch(setProducts(productsResponse.data.data));
 
-        // Thêm mục "Tất cả" vào đầu danh sách categories
         const dynamicCategories = categoriesResponse.data.data
-          .filter((cat) => cat.status === "active") // Chỉ lấy danh mục hoạt động
+          .filter((cat) => cat.status === "active")
           .map((cat) => ({ key: cat.name, label: cat.name }));
 
         setCategories([
@@ -80,80 +68,56 @@ const ProductCatalog = () => {
     fetchCatalogData();
   }, [dispatch]);
 
-  // 2. Cập nhật filter dựa trên URL và danh mục động
   useEffect(() => {
-    const filterKeyFromPath = category || "all";
-    const foundCategory = categories.find((f) => f.key === filterKeyFromPath);
+    setActiveFilter(categoryNameFromUrl);
+  }, [categoryNameFromUrl]);
 
-    if (foundCategory) {
-      setActiveFilter(filterKeyFromPath);
-    } else if (categories.length > 0) {
-      // Nếu danh mục không tồn tại và categories đã được tải, chuyển hướng về /products
-      setActiveFilter("all");
-      navigate("/products", { replace: true });
-    }
-    // Categories.length > 0 đảm bảo useEffect này chỉ chạy sau khi categories đã được fetch
-  }, [category, navigate, categories]);
-
-  // Đặt lại trang khi bộ lọc thay đổi
   useEffect(() => {
     setCurrentPage(1);
   }, [activeFilter, sortBy, searchTerm, selectedBrand, priceRange]);
 
-  // 3. Lấy danh sách thương hiệu độc nhất (Đã sửa để xử lý Brand object)
   const uniqueBrands = useMemo(() => {
     const brandsMap = new Map();
     allProducts.forEach((product) => {
-      // Đảm bảo brand đã được populate và có _id
       if (product.brand && product.brand._id) {
         brandsMap.set(product.brand._id, product.brand.name);
       }
     });
-    // Trả về một mảng các đối tượng { _id, name } nếu cần cho tối ưu,
-    // hoặc chỉ là mảng tên như hiện tại, nhưng đảm bảo name là duy nhất
     return Array.from(brandsMap.values());
   }, [allProducts]);
 
-  // 4. Logic Lọc Sản phẩm Chính
   const filteredProducts = useMemo(() => {
     let products = [...allProducts];
 
-    // Lọc theo Danh mục
     if (activeFilter !== "all") {
       products = products.filter(
         (product) => product.category?.name === activeFilter
       );
     }
 
-    // Lọc theo Tìm kiếm
     if (searchTerm) {
       products = products.filter((product) =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Lọc theo Thương hiệu (Sử dụng tên thương hiệu)
     if (selectedBrand) {
       products = products.filter(
         (product) => product.brand?.name === selectedBrand
       );
     }
 
-    // Lọc theo Giá (Cần kiểm tra sản phẩm có variants và sellingPrice không)
     products = products.filter((product) => {
-      // Đảm bảo có variants và lấy giá của variant đầu tiên (Giả định của bạn)
       if (!product.variants || product.variants.length === 0) return false;
 
       const productPrice = product.variants[0].sellingPrice;
 
-      // Xử lý giá Max là Infinity
       const maxPrice =
         priceRange.max === Infinity ? Number.MAX_SAFE_INTEGER : priceRange.max;
 
       return productPrice >= priceRange.min && productPrice <= maxPrice;
     });
 
-    // Sắp xếp
     switch (sortBy) {
       case "name-asc":
         products.sort((a, b) => a.name.localeCompare(b.name));
@@ -162,7 +126,6 @@ const ProductCatalog = () => {
         products.sort((a, b) => b.name.localeCompare(a.name));
         break;
       case "price-asc":
-        // Sắp xếp theo giá variant đầu tiên
         products.sort(
           (a, b) =>
             (a.variants[0]?.sellingPrice || 0) -
@@ -170,7 +133,6 @@ const ProductCatalog = () => {
         );
         break;
       case "price-desc":
-        // Sắp xếp theo giá variant đầu tiên
         products.sort(
           (a, b) =>
             (b.variants[0]?.sellingPrice || 0) -
@@ -191,8 +153,7 @@ const ProductCatalog = () => {
     sortBy,
   ]);
 
-  // Phân trang
-  const productsPerPage = 9; // Tăng lên 9 sản phẩm/trang để phù hợp với lưới 3 cột
+  const productsPerPage = 9;
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
   const currentProducts = filteredProducts.slice(
     (currentPage - 1) * productsPerPage,
@@ -203,15 +164,16 @@ const ProductCatalog = () => {
   const toggleView = () => setViewMode(viewMode === "grid" ? "list" : "grid");
 
   const handleFilterClick = (filterKey) => {
-    // Chuyển hướng đến URL mới
-    const path = filterKey === "all" ? "/products" : `/products/${filterKey}`;
-    navigate(path);
+    if (filterKey === "all") {
+      navigate("/products"); // /products
+    } else {
+      navigate(`/products?categoryName=${filterKey}`);
+    }
   };
 
   const currentCategoryLabel =
     categories.find((f) => f.key === activeFilter)?.label || "Tất cả Sản phẩm";
 
-  // Xử lý Loading và Error
   if (isLoading) {
     return (
       <Container className="py-5 text-center">
@@ -242,7 +204,6 @@ const ProductCatalog = () => {
         </Col>
       </Row>
 
-      {/* Bộ lọc Danh mục Động */}
       <div className="mb-4">
         <ButtonGroup className="flex-wrap">
           {categories.map((filter) => (
@@ -260,7 +221,6 @@ const ProductCatalog = () => {
         </ButtonGroup>
       </div>
 
-      {/* Bộ lọc Tìm kiếm, Sắp xếp, Thương hiệu, Giá */}
       <Row className="g-2 mb-4 p-3 bg-light border rounded align-items-center">
         <Col md={3} sm={6} className="mb-2 mb-md-0">
           <Form.Control
@@ -288,7 +248,6 @@ const ProductCatalog = () => {
             onChange={(e) => setSelectedBrand(e.target.value)}
           >
             <option value="">Tất cả thương hiệu</option>
-            {/* Brands Động */}
             {uniqueBrands.map((brandName) => (
               <option key={brandName} value={brandName}>
                 {brandName}
@@ -316,7 +275,6 @@ const ProductCatalog = () => {
               onChange={(e) =>
                 setPriceRange({
                   ...priceRange,
-                  // Đặt lại thành Infinity nếu trường input rỗng
                   max: parseInt(e.target.value) || Infinity,
                 })
               }
@@ -325,7 +283,6 @@ const ProductCatalog = () => {
         </Col>
       </Row>
 
-      {/* Hiển thị Sản phẩm */}
       <Row
         className={
           viewMode === "grid"
@@ -338,7 +295,7 @@ const ProductCatalog = () => {
             <Col key={product._id}>
               <ProductItem
                 product={product}
-                category={product.category?.name} // Đảm bảo an toàn
+                category={product.category?.name}
                 viewMode={viewMode}
               />
             </Col>
@@ -358,15 +315,12 @@ const ProductCatalog = () => {
       </Row>
 
       {/* Phân trang */}
-      {totalPages >= 1 && ( // Đảm bảo hiển thị nếu có 1 trang hoặc nhiều hơn (theo yêu cầu đề bài)
+      {totalPages >= 1 && (
         <Pagination className="justify-content-center mt-4">
-          {/* Nút Previous */}
           <Pagination.Prev
             onClick={() => paginate(currentPage - 1)}
             disabled={currentPage === 1}
           />
-
-          {/* Hiển thị tất cả các số trang */}
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
             <Pagination.Item
               key={number}
@@ -376,8 +330,6 @@ const ProductCatalog = () => {
               {number}
             </Pagination.Item>
           ))}
-
-          {/* Nút Next */}
           <Pagination.Next
             onClick={() => paginate(currentPage + 1)}
             disabled={currentPage === totalPages}

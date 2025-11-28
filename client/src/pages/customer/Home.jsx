@@ -28,6 +28,7 @@ const Home = () => {
   const navigate = useNavigate();
 
   const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
@@ -39,10 +40,12 @@ const Home = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [productsResponse, categoriesResponse] = await Promise.all([
-          axios.get("/api/v1/products"),
-          axios.get("/api/v1/categories"),
-        ]);
+        const [productsResponse, categoriesResponse, brandsResponse] =
+          await Promise.all([
+            axios.get("/api/v1/products"),
+            axios.get("/api/v1/categories"),
+            axios.get("/api/v1/brands"),
+          ]);
 
         dispatch(setProducts(productsResponse.data.data));
 
@@ -51,6 +54,8 @@ const Home = () => {
             .filter((cat) => cat.status === "active")
             .slice(0, 3)
         );
+
+        setBrands(brandsResponse.data.data);
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu trang chủ:", err);
         setError("Không thể tải được dữ liệu. Vui lòng thử lại sau.");
@@ -293,10 +298,7 @@ const Home = () => {
 
       <PaymentOffersSection heading="ƯU ĐÃI THANH TOÁN" data={paymentOffers} />
       <PaymentOffersSection heading="ƯU ĐÃI SINH VIÊN" data={studentOffers} />
-      <PaymentOffersSection
-        heading="CHUYÊN TRANG THƯƠNG HIỆU"
-        data={brandsData}
-      />
+      {/* <PaymentOffersSection heading="CHUYÊN TRANG THƯƠNG HIỆU" data={brands} /> */}
     </Container>
   );
 };

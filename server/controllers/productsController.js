@@ -127,13 +127,38 @@ exports.createProduct = async (req, res, next) => {
 // @access  Public
 exports.getProducts = async (req, res, next) => {
   try {
-    const products = await Product.find({})
+    let filter = {};
+
+    // 1. Xử lý Lọc theo Tên Danh mục (SỬA Ở ĐÂY)
+    if (req.query.categoryName) {
+      const categoryName = req.query.categoryName;
+
+      // Tìm Category ID từ Tên Danh mục
+      const category = await Category.findOne({ name: categoryName });
+
+      if (category) {
+        // Nếu tìm thấy, thêm điều kiện lọc vào object filter
+        filter.category = category._id;
+      } else {
+        // Nếu tên danh mục không hợp lệ, trả về danh sách sản phẩm rỗng
+        return res.status(200).json({ success: true, count: 0, data: [] });
+      }
+    }
+
+    // 2. Thực hiện Truy vấn Sản phẩm (kèm theo điều kiện lọc đã xây dựng)
+    const products = await Product.find(filter)
+      // Thêm các logic khác như phân trang, sắp xếp, tìm kiếm...
+      // Ví dụ: .sort({ createdAt: -1 }).limit(10);
       .populate("category", "name")
-      .populate("brand", "name logo");
-    res
-      .status(200)
-      .json({ success: true, count: products.length, data: products });
+      .populate("brand", "name logo"); // Hiển thị tên danh mục
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      data: products,
+    });
   } catch (error) {
+    // Xử lý lỗi
     res
       .status(500)
       .json({ success: false, msg: "Lỗi server", error: error.message });
@@ -143,53 +168,19 @@ exports.getProducts = async (req, res, next) => {
 // @desc    Lấy chi tiết một sản phẩm
 // @route   GET /api/v1/products/:id
 // @access  Public
-// exports.getProduct = async (req, res, next) => {
-//   try {
-//     const product = await Product.findById(req.params.id)
-//       .populate("category", "name")
-//       .populate("brand", "name logo");
-//     if (!product) {
-//       return res
-//         .status(404)
-//         .json({ success: false, msg: `Không tìm thấy sản phẩm` });
-//     }
-//     res.status(200).json({ success: true, data: product });
-//   } catch (error) {
-//     res.status(400).json({ success: false, msg: "ID không hợp lệ" });
-//   }
-// };
-exports.getProducts = async (req, res, next) => {
+exports.getProduct = async (req, res, next) => {
   try {
-    let filter = {};
-    const { categoryName } = req.query; // Lấy query param categoryName
-
-    // 1. Lọc theo Tên Danh mục (nếu có query param)
-    if (categoryName) {
-      // Tìm ID của Category dựa trên TÊN
-      const categoryDoc = await Category.findOne({ name: categoryName });
-
-      if (categoryDoc) {
-        // Thêm điều kiện lọc vào filter
-        filter.category = categoryDoc._id;
-      } else {
-        // Nếu tên danh mục không tồn tại, trả về mảng rỗng
-        return res.status(200).json({ success: true, count: 0, data: [] });
-      }
-    }
-
-    // 2. Thực hiện query với bộ lọc đã tạo
-    const products = await Product.find(filter)
+    const product = await Product.findById(req.params.id)
       .populate("category", "name")
       .populate("brand", "name logo");
-
-    res
-      .status(200)
-      .json({ success: true, count: products.length, data: products });
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, msg: `Không tìm thấy sản phẩm` });
+    }
+    res.status(200).json({ success: true, data: product });
   } catch (error) {
-    console.error(error); // Log lỗi server
-    res
-      .status(500)
-      .json({ success: false, msg: "Lỗi server", error: error.message });
+    res.status(400).json({ success: false, msg: "ID không hợp lệ" });
   }
 };
 
