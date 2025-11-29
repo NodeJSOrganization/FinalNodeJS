@@ -31,11 +31,11 @@ const paymentMethods = [
     name: "Thanh toán khi nhận hàng (COD)",
     description: "Trả tiền mặt trực tiếp cho nhân viên giao hàng.",
   },
-  {
-    id: "momo",
-    name: "Ví điện tử Momo",
-    description: "Thanh toán an toàn và nhanh chóng qua ứng dụng Momo.",
-  },
+  // {
+  //   id: "momo",
+  //   name: "Ví điện tử Momo",
+  //   description: "Thanh toán an toàn và nhanh chóng qua ứng dụng Momo.",
+  // },
   {
     id: "vnpay",
     name: "Cổng thanh toán VNPAY",
@@ -217,7 +217,7 @@ export default function PaymentPage() {
           </Card>
         </Col>
         <Col md={5}>
-          <Card className="shadow-sm sticky-top" style={{ top: "20px" }}>
+          <Card className="shadow-sm" style={{ top: "20px" }}>
             <Card.Header as="h5">Tóm tắt đơn hàng</Card.Header>
             <Card.Body>
               <div className="d-flex justify-content-between mb-2">

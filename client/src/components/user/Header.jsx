@@ -122,7 +122,7 @@ const Header = () => {
               </Button>
             </Nav>
 
-            <Form
+            {/* <Form
               className="d-flex mx-auto my-2 my-lg-0 flex-grow-1"
               style={{ maxWidth: "300px", width: "100%" }}
             >
@@ -135,7 +135,7 @@ const Header = () => {
               <Button variant="outline-secondary" className="custom-search-btn">
                 <FaSearch />
               </Button>
-            </Form>
+            </Form> */}
 
             <Nav className="ms-auto align-items-center">
               <Link to="/cart" className="custom-btn mx-2 nav-link">

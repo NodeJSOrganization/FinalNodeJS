@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FaTh, FaList } from "react-icons/fa";
 import {
   Container,
@@ -10,25 +10,25 @@ import {
   Pagination,
   Card,
   Form,
+  Spinner,
+  Alert,
 } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
 import { setProducts } from "../../../features/product/productReducer";
 import ProductItem from "../../components/product/ProductItem";
 import axios from "axios";
 
-const filters = [
-  { key: "all", label: "Tất cả sản phẩm" },
-  { key: "Laptop", label: "Laptop" },
-  { key: "Màn hình", label: "Màn hình" },
-  { key: "Ram", label: "Ổ cứng" },
-];
-
 const ProductCatalog = () => {
   const allProducts = useSelector((state) => state.product.products);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { category } = useParams();
+  const [searchParams] = useSearchParams();
+  const categoryNameFromUrl = searchParams.get("categoryName") || "all";
+
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,50 +38,61 @@ const ProductCatalog = () => {
   const [selectedBrand, setSelectedBrand] = useState("");
   const [priceRange, setPriceRange] = useState({ min: 0, max: Infinity });
 
-  const uniqueBrands = useMemo(
-    () => [...new Set(allProducts.map((product) => product.brand.name))],
-    [allProducts]
-  );
-
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchCatalogData = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        const { data } = await axios.get("/api/v1/products");
-        dispatch(setProducts(data.data));
+        const [productsResponse, categoriesResponse] = await Promise.all([
+          axios.get("/api/v1/products"),
+          axios.get("/api/v1/categories"),
+        ]);
+
+        dispatch(setProducts(productsResponse.data.data));
+
+        const dynamicCategories = categoriesResponse.data.data
+          .filter((cat) => cat.status === "active")
+          .map((cat) => ({ key: cat.name, label: cat.name }));
+
+        setCategories([
+          { key: "all", label: "Tất cả sản phẩm" },
+          ...dynamicCategories,
+        ]);
       } catch (error) {
-        console.log(error);
+        console.error("Lỗi khi tải dữ liệu catalog:", error);
+        setError("Không thể tải dữ liệu sản phẩm và danh mục.");
+      } finally {
+        setIsLoading(false);
       }
     };
-    fetchProducts();
-  }, []);
+    fetchCatalogData();
+  }, [dispatch]);
 
   useEffect(() => {
-    const filterKeyFromPath = category || "all";
-    if (filters.some((f) => f.key === filterKeyFromPath)) {
-      setActiveFilter(filterKeyFromPath);
-    } else {
-      setActiveFilter("all");
-      navigate("/products");
-    }
-  }, [category, navigate]);
+    setActiveFilter(categoryNameFromUrl);
+  }, [categoryNameFromUrl]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [activeFilter, sortBy, searchTerm, selectedBrand, priceRange]);
 
+  const uniqueBrands = useMemo(() => {
+    const brandsMap = new Map();
+    allProducts.forEach((product) => {
+      if (product.brand && product.brand._id) {
+        brandsMap.set(product.brand._id, product.brand.name);
+      }
+    });
+    return Array.from(brandsMap.values());
+  }, [allProducts]);
+
   const filteredProducts = useMemo(() => {
     let products = [...allProducts];
 
     if (activeFilter !== "all") {
-      const categoryToFilter = filters.find((f) => f.key === activeFilter)?.key;
-
-      if (categoryToFilter) {
-        products = products.filter(
-          (product) => product.category.name === categoryToFilter
-        );
-      } else {
-        products = [];
-      }
+      products = products.filter(
+        (product) => product.category?.name === activeFilter
+      );
     }
 
     if (searchTerm) {
@@ -92,13 +103,19 @@ const ProductCatalog = () => {
 
     if (selectedBrand) {
       products = products.filter(
-        (product) => product.brand.name === selectedBrand
+        (product) => product.brand?.name === selectedBrand
       );
     }
 
     products = products.filter((product) => {
+      if (!product.variants || product.variants.length === 0) return false;
+
       const productPrice = product.variants[0].sellingPrice;
-      return productPrice >= priceRange.min && productPrice <= priceRange.max;
+
+      const maxPrice =
+        priceRange.max === Infinity ? Number.MAX_SAFE_INTEGER : priceRange.max;
+
+      return productPrice >= priceRange.min && productPrice <= maxPrice;
     });
 
     switch (sortBy) {
@@ -110,12 +127,16 @@ const ProductCatalog = () => {
         break;
       case "price-asc":
         products.sort(
-          (a, b) => a.variants[0].sellingPrice - b.variants[0].sellingPrice
+          (a, b) =>
+            (a.variants[0]?.sellingPrice || 0) -
+            (b.variants[0]?.sellingPrice || 0)
         );
         break;
       case "price-desc":
         products.sort(
-          (a, b) => b.variants[0].sellingPrice - a.variants[0].sellingPrice
+          (a, b) =>
+            (b.variants[0]?.sellingPrice || 0) -
+            (a.variants[0]?.sellingPrice || 0)
         );
         break;
       default:
@@ -132,7 +153,7 @@ const ProductCatalog = () => {
     sortBy,
   ]);
 
-  const productsPerPage = 6;
+  const productsPerPage = 9;
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
   const currentProducts = filteredProducts.slice(
     (currentPage - 1) * productsPerPage,
@@ -143,18 +164,38 @@ const ProductCatalog = () => {
   const toggleView = () => setViewMode(viewMode === "grid" ? "list" : "grid");
 
   const handleFilterClick = (filterKey) => {
-    const path = filterKey === "all" ? "/products" : `/${filterKey}`;
-    navigate(path);
+    if (filterKey === "all") {
+      navigate("/products"); // /products
+    } else {
+      navigate(`/products?categoryName=${filterKey}`);
+    }
   };
 
-  const currentCategoryName =
-    filters.find((f) => f.key === activeFilter)?.label || "Sản phẩm";
+  const currentCategoryLabel =
+    categories.find((f) => f.key === activeFilter)?.label || "Tất cả Sản phẩm";
+
+  if (isLoading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="primary" />
+        <p>Đang tải dữ liệu...</p>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container className="py-5">
+        <Alert variant="danger">{error}</Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container className="py-4">
       <Row className="align-items-center mb-4">
         <Col>
-          <h2 className="text-primary mb-0">{currentCategoryName}</h2>
+          <h2 className="text-primary mb-0">{currentCategoryLabel}</h2>
         </Col>
         <Col xs="auto">
           <Button variant="outline-primary" onClick={toggleView}>
@@ -165,7 +206,7 @@ const ProductCatalog = () => {
 
       <div className="mb-4">
         <ButtonGroup className="flex-wrap">
-          {filters.map((filter) => (
+          {categories.map((filter) => (
             <Button
               key={filter.key}
               variant={
@@ -180,7 +221,7 @@ const ProductCatalog = () => {
         </ButtonGroup>
       </div>
 
-      <Row className="g-2 mb-4 p-3 bg-light border rounded">
+      <Row className="g-2 mb-4 p-3 bg-light border rounded align-items-center">
         <Col md={3} sm={6} className="mb-2 mb-md-0">
           <Form.Control
             type="text"
@@ -207,9 +248,9 @@ const ProductCatalog = () => {
             onChange={(e) => setSelectedBrand(e.target.value)}
           >
             <option value="">Tất cả thương hiệu</option>
-            {uniqueBrands.map((brand) => (
-              <option key={brand._id} value={brand.name}>
-                {brand}
+            {uniqueBrands.map((brandName) => (
+              <option key={brandName} value={brandName}>
+                {brandName}
               </option>
             ))}
           </Form.Select>
@@ -254,7 +295,7 @@ const ProductCatalog = () => {
             <Col key={product._id}>
               <ProductItem
                 product={product}
-                category={product.category.name}
+                category={product.category?.name}
                 viewMode={viewMode}
               />
             </Col>
@@ -273,8 +314,13 @@ const ProductCatalog = () => {
         )}
       </Row>
 
-      {totalPages > 1 && (
+      {/* Phân trang */}
+      {totalPages >= 1 && (
         <Pagination className="justify-content-center mt-4">
+          <Pagination.Prev
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+          />
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
             <Pagination.Item
               key={number}
@@ -284,6 +330,10 @@ const ProductCatalog = () => {
               {number}
             </Pagination.Item>
           ))}
+          <Pagination.Next
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          />
         </Pagination>
       )}
     </Container>
