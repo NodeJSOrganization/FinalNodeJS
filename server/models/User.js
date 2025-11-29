@@ -54,6 +54,11 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    loyaltyPoints: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     emailVerificationToken: String,
     emailVerificationExpires: Date,
     resetPasswordToken: String,

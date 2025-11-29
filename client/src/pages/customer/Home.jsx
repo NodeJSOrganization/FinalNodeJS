@@ -114,7 +114,7 @@ const Home = () => {
                 Reliable Hard Drives. Unleash productivity and immerse yourself
                 in stunning visuals.
               </p>
-              <div className="d-grid gap-2 d-md-flex justify-content-md-center mb-4">
+              {/* <div className="d-grid gap-2 d-md-flex justify-content-md-center mb-4">
                 <Button variant="primary" size="lg">
                   <Link
                     to="/Laptop"
@@ -139,7 +139,7 @@ const Home = () => {
                 <Button as={Link} to="/Ram" variant="outline-primary" size="lg">
                   Hard Drives
                 </Button>
-              </div>
+              </div> */}
             </Col>
             <Col md={6}>
               <Image
