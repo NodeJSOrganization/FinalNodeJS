@@ -16,7 +16,7 @@ import {
 } from "react-bootstrap";
 import "../../../styles/AccountOrderHistory.css";
 import AccountOrderDetail from "../AccountOrderDetail/index.jsx";
-import { getMyOrders } from "../../../api/orderApi.js";
+import { getMyOrders, cancelMyOrder } from "../../../api/orderApi.js";
 
 const STATUS = {
   ALL: "ALL",
@@ -122,10 +122,36 @@ export default function AccountOrderHistory() {
       });
   }, [orders, activeTab, keyword]);
 
-  // ====== Action handlers (tùy bạn gắn API) ======
-  const handleCancel = (order) => {
-    console.log("Cancel order:", order.orderId);
-    alert(`Yêu cầu hủy đơn ${order.orderId} đã được gửi`);
+  // ====== Action handlers ======
+  const handleCancel = async (order) => {
+    const ok = window.confirm(
+      `Bạn có chắc chắn muốn hủy đơn ${order.orderId}?`
+    );
+    if (!ok) return;
+
+    try {
+      const res = await cancelMyOrder(order._id);
+      const json = res.data;
+
+      if (!json.success) {
+        throw new Error(json.msg || "Không thể hủy đơn hàng");
+      }
+
+      const updated = json.data;
+
+      // Cập nhật list orders
+      setOrders((prev) =>
+        prev.map((o) => (o._id === updated._id ? updated : o))
+      );
+
+      // Nếu đang mở modal chi tiết cho đơn này thì cập nhật luôn
+      setSelectedOrder((prev) =>
+        prev && prev._id === updated._id ? updated : prev
+      );
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Có lỗi xảy ra khi hủy đơn hàng");
+    }
   };
 
   const handleReorder = (order) => {

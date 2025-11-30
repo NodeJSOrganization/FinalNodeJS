@@ -359,3 +359,47 @@ exports.getOrderById = async (req, res) => {
     res.status(500).json({ success: false, msg: "Lỗi Server" });
   }
 };
+
+exports.cancelMyOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, msg: "Không tìm thấy đơn hàng" });
+    }
+
+    // Chỉ cho chủ đơn hủy
+    if (!order.user || order.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        msg: "Bạn không có quyền hủy đơn hàng này",
+      });
+    }
+
+    // Chỉ cho phép hủy khi đang chờ xác nhận
+    if (order.currentStatus !== "pending") {
+      return res.status(400).json({
+        success: false,
+        msg: "Chỉ có thể hủy đơn hàng đang chờ xác nhận",
+      });
+    }
+
+    // Thêm trạng thái cancelled vào statusHistory
+    order.statusHistory.push({ status: "cancelled" });
+    await order.save(); // pre('save') sẽ tự cập nhật currentStatus
+
+    const clientOrder = mapOrderToClient(order);
+
+    return res.status(200).json({
+      success: true,
+      data: clientOrder,
+    });
+  } catch (error) {
+    console.error("Lỗi khi hủy đơn hàng:", error);
+    return res
+      .status(500)
+      .json({ success: false, msg: "Lỗi Server khi hủy đơn hàng" });
+  }
+};
