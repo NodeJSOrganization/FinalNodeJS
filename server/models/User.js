@@ -50,7 +50,9 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Vui lòng nhập mật khẩu"],
+      required: function () {
+        return this.authProvider === "local";
+      },
       minlength: 6,
       select: false,
     },
@@ -68,6 +70,16 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Thông tin xác thực từ nhà cung cấp bên thứ ba (Social Login)
+    authProvider: {
+      type: String,
+      enum: ["local", "google", "facebook"],
+      default: "local",
+    },
+    authProviderId: {
+      type: String, // lưu sub/id từ Google/Facebook
+    },
+    //
     emailVerificationToken: String,
     emailVerificationExpires: Date,
     resetPasswordToken: String,

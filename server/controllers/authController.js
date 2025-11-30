@@ -4,6 +4,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
+const axios = require("axios");
 
 // @desc    Đăng ký người dùng mới
 // @route   POST /api/auth/register
@@ -245,10 +247,6 @@ exports.resetPassword = async (req, res, next) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
-    // Mã hóa mật khẩu mới
-    // const salt = await bcrypt.genSalt(10);
-    // user.password = await bcrypt.hash(user.password, salt);
-
     // --- THAY ĐỔI QUAN TRỌNG TẠI ĐÂY ---
     // Khi lưu, chỉ validate những trường đã được sửa đổi (password, reset tokens)
     // Mongoose sẽ bỏ qua việc kiểm tra các trường khác như address.
@@ -295,5 +293,118 @@ exports.changePassword = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, msg: 'Lỗi server', error: error.message });
+  }
+};
+
+// @desc    Đăng nhập bằng Google
+// @route   POST /api/auth/google
+exports.googleLogin = async (req, res) => {
+  try {
+    const { providerId, email, fullName, avatar } = req.body;
+
+    if (!providerId || !email) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Thiếu thông tin Google user" });
+    }
+
+    // 1. Tìm user đã login Google trước đó
+    let user = await User.findOne({
+      authProvider: "google",
+      authProviderId: providerId,
+    });
+
+    // 2. Nếu chưa có, thử tìm theo email (có thể user từng đăng ký local)
+    if (!user) {
+      user = await User.findOne({ email });
+    }
+
+    // 3. Nếu vẫn chưa có -> tạo user mới
+    if (!user) {
+      user = new User({
+        fullName: fullName || email,
+        email,
+        authProvider: "google",
+        authProviderId: providerId,
+        isVerified: true, // tin tưởng email từ Google
+        password: crypto.randomBytes(16).toString("hex"), // random để pass validate
+        avatar: avatar ? { url: avatar } : undefined,
+      });
+    } else {
+      // Nếu user local trước đây, gắn thêm thông tin provider
+      user.authProvider = "google";
+      user.authProviderId = providerId;
+      if (avatar && (!user.avatar || !user.avatar.url)) {
+        user.avatar = { url: avatar };
+      }
+      user.isVerified = true;
+    }
+
+    await user.save();
+
+    // Trả token giống login bình thường
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    console.error("Google login error:", error);
+    res
+      .status(500)
+      .json({ success: false, msg: "Google login thất bại", error: error.message });
+  }
+};
+
+// @desc    Đăng nhập bằng Facebook
+// @route   POST /api/auth/facebook
+exports.facebookLogin = async (req, res) => {
+  try {
+    const { providerId, email, fullName, avatar } = req.body;
+
+    if (!providerId) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Thiếu thông tin Facebook user" });
+    }
+
+    // 1. Tìm user đã login Facebook trước đó
+    let user = await User.findOne({
+      authProvider: "facebook",
+      authProviderId: providerId,
+    });
+
+    // 2. Nếu chưa có, thử tìm theo email (nếu FE có gửi email)
+    if (!user && email) {
+      user = await User.findOne({ email });
+    }
+
+    // 3. Nếu vẫn chưa có -> tạo user mới
+    if (!user) {
+      user = new User({
+        fullName: fullName || email || "Facebook user",
+        email, // có thể undefined nếu user không share email
+        authProvider: "facebook",
+        authProviderId: providerId,
+        isVerified: true, // coi như đã xác minh qua Facebook
+        password: crypto.randomBytes(16).toString("hex"),
+        avatar: avatar ? { url: avatar } : undefined,
+      });
+    } else {
+      // Nếu user local hoặc google trước đây, gắn thêm info Facebook
+      user.authProvider = "facebook";
+      user.authProviderId = providerId;
+      if (avatar && (!user.avatar || !user.avatar.url)) {
+        user.avatar = { url: avatar };
+      }
+      user.isVerified = true;
+    }
+
+    await user.save();
+
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    console.error("Facebook login error:", error);
+    res.status(500).json({
+      success: false,
+      msg: "Facebook login thất bại",
+      error: error.message,
+    });
   }
 };
