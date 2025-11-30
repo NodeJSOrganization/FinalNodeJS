@@ -28,6 +28,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [socialError, setSocialError] = useState("");
+  const [fbReady, setFbReady] = useState(false);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -74,26 +75,52 @@ const Login = () => {
   }, [user, isSuccess, navigate]);
 
   useEffect(() => {
-    // Nếu FB đã có (do page khác đã load), không cần làm lại
-    if (window.FB) return;
+    const appId = import.meta.env.VITE_FACEBOOK_APP_ID;
+    console.log("FACEBOOK_APP_ID =", appId);
 
-    // Hàm này sẽ được Facebook SDK gọi sau khi script load xong
-    window.fbAsyncInit = function () {
+    // Nếu thiếu appId thì khỏi làm gì nữa
+    if (!appId) {
+      setSocialError("Chưa cấu hình VITE_FACEBOOK_APP_ID trong .env");
+      return;
+    }
+
+    function initFacebookSDK() {
+      if (!window.FB) return;
+
+      console.log("FB SDK init...");
       window.FB.init({
-        appId: import.meta.env.VITE_FACEBOOK_APP_ID,
+        appId,
         cookie: true,
         xfbml: false,
-        version: "v19.0", // dùng version mới nhất bạn cấu hình
+        version: "v18.0",
       });
-    };
+      setFbReady(true);
+    }
 
-    // Tự động tạo <script> để load SDK
+    // SDK đã load sẵn (reload trang v.v.) → init luôn
+    if (window.FB) {
+      initFacebookSDK();
+      return;
+    }
+
+    // Hàm này sẽ được gọi khi sdk.js load xong
+    window.fbAsyncInit = initFacebookSDK;
+
+    // Nếu script đã chèn rồi thì thôi
+    if (document.getElementById("facebook-jssdk")) return;
+
+    // Chèn script SDK
     (function (d, s, id) {
       const element = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return; // tránh inject 2 lần
       const js = d.createElement(s);
       js.id = id;
       js.src = "https://connect.facebook.net/en_US/sdk.js";
+      js.onerror = () => {
+        console.error("Không load được Facebook SDK");
+        setSocialError(
+          "Không load được Facebook SDK. Kiểm tra mạng / adblock."
+        );
+      };
       element.parentNode.insertBefore(js, element);
     })(document, "script", "facebook-jssdk");
   }, []);
@@ -103,7 +130,9 @@ const Login = () => {
   };
 
   const handleFacebookLogin = () => {
-    if (!window.FB) {
+    console.log("FB =", window.FB, "fbReady =", fbReady);
+
+    if (!window.FB || !fbReady) {
       setSocialError(
         "Facebook SDK chưa sẵn sàng, vui lòng tải lại trang rồi thử lại."
       );
@@ -113,25 +142,25 @@ const Login = () => {
     window.FB.login(
       (response) => {
         if (response.authResponse) {
-          const { accessToken, userID } = response.authResponse;
-
           window.FB.api(
             "/me",
-            { fields: "id,name,email,picture" },
+            {
+              fields: "id,name,email,picture",
+              access_token: accessToken,
+            },
             (profile) => {
               const facebookUser = {
                 providerId: profile.id,
-                email: profile.email || "", // có thể undefined
+                email: profile.email || "",
                 fullName: profile.name,
                 avatar: profile.picture?.data?.url,
               };
 
-              setSocialError(""); // clear lỗi cũ
+              setSocialError("");
               dispatch(loginWithFacebook(facebookUser));
             }
           );
         } else {
-          // user cancel hoặc không cấp quyền
           setSocialError("Bạn đã huỷ đăng nhập Facebook.");
         }
       },
