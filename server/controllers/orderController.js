@@ -297,6 +297,7 @@ const mapOrderToClient = (orderDoc) => {
 
     items: (o.items || []).map((item) => ({
       productId: item.product,
+      variantId: item.variant?._id,
       image: item.variant?.image,
       name: item.variant?.name,
       variant: item.variant?.variantName,
@@ -401,5 +402,49 @@ exports.cancelMyOrder = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, msg: "Lỗi Server khi hủy đơn hàng" });
+  }
+};
+
+// POST /api/v1/orders/check-reorder
+// body: { orderItems: [ { product, variant: { _id }, quantity } ] }
+exports.checkReorderStock = async (req, res) => {
+  try {
+    const { orderItems } = req.body;
+
+    if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Không có sản phẩm nào để kiểm tra" });
+    }
+
+    for (const item of orderItems) {
+      const productId = item.product?._id || item.product;
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        throw new Error("Sản phẩm không tồn tại");
+      }
+
+      const variant = product.variants.id(item.variant._id);
+      if (!variant) {
+        throw new Error(
+          `Biến thể cho sản phẩm ${product.name} không tồn tại.`
+        );
+      }
+
+      if (variant.quantity < item.quantity) {
+        throw new Error(
+          `Sản phẩm "${product.name} - ${variant.variantName}" không đủ số lượng tồn kho (chỉ còn ${variant.quantity}).`
+        );
+      }
+    }
+
+    // nếu qua hết vòng for thì ok
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Lỗi check-reorder:", error);
+    return res
+      .status(400)
+      .json({ success: false, msg: error.message || "Không đủ tồn kho" });
   }
 };

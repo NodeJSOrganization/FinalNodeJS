@@ -1,5 +1,9 @@
 // client/src/pages/AccountOrderHistory.jsx
 import { useMemo, useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { createOrderSummary } from "../../../../features/order/orderReducer.js";
 import {
   Badge,
   Button,
@@ -16,7 +20,11 @@ import {
 } from "react-bootstrap";
 import "../../../styles/AccountOrderHistory.css";
 import AccountOrderDetail from "../AccountOrderDetail/index.jsx";
-import { getMyOrders, cancelMyOrder } from "../../../api/orderApi.js";
+import {
+  getMyOrders,
+  cancelMyOrder,
+  checkReorderStock,
+} from "../../../api/orderApi.js";
 
 const STATUS = {
   ALL: "ALL",
@@ -82,6 +90,11 @@ export default function AccountOrderHistory() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reorderLoadingId, setReorderLoadingId] = useState(null);
+  const [reorderErrors, setReorderErrors] = useState({});
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -154,9 +167,77 @@ export default function AccountOrderHistory() {
     }
   };
 
-  const handleReorder = (order) => {
-    console.log("Reorder:", order.orderId);
-    alert(`Đã thêm sản phẩm trong đơn ${order.orderId} vào giỏ`);
+  const handleReorder = async (order) => {
+    // 1. map order items -> orderItems gửi lên BE
+    const orderItems = order.items.map((it) => ({
+      product: it.productId,
+      variant: {
+        _id: it.variantId,
+        name: it.name,
+        variantName: it.variant,
+        image: it.image,
+        price: priceAfterDiscount(it),
+        sku: "",
+      },
+      quantity: it.qty,
+    }));
+
+    try {
+      setReorderLoadingId(order._id);
+
+      // 2. gọi api check tồn kho
+      await checkReorderStock(orderItems);
+
+      // nếu tới đây là đủ hàng → clear lỗi cũ (nếu có)
+      setReorderErrors((prev) => {
+        const clone = { ...prev };
+        delete clone[order._id];
+        return clone;
+      });
+
+      // 3. nếu ok -> tạo summary + navigate như cũ
+      const subtotal = calcSubtotal(order);
+      const voucherDiscount = Number(order.couponDiscount || 0);
+      const pointsDiscount = Number(order.pointsUsed || 0) * POINT_VALUE;
+      const finalTotal = Math.max(
+        0,
+        subtotal - voucherDiscount - pointsDiscount
+      );
+
+      dispatch(
+        createOrderSummary({
+          orderItems,
+          subtotal,
+          voucherDiscount,
+          pointsDiscount,
+          finalTotal,
+          selectedVoucher: order.couponCode
+            ? {
+                code: order.couponCode,
+                type: "fixed_amount",
+                value: voucherDiscount,
+              }
+            : null,
+          usePoints: order.pointsUsed > 0,
+        })
+      );
+
+      navigate("/order");
+    } catch (err) {
+      const msg =
+        err?.response?.data?.msg ||
+        "Đơn này có sản phẩm đã hết hàng hoặc không đủ số lượng";
+
+      // lưu lỗi lại theo order._id để render lên UI
+      setReorderErrors((prev) => ({
+        ...prev,
+        [order._id]: msg,
+      }));
+
+      toast?.error ? toast.error(msg) : alert(msg);
+    } finally {
+      setReorderLoadingId(null);
+    }
   };
 
   const handleReview = (order) => {
@@ -266,7 +347,10 @@ export default function AccountOrderHistory() {
                 <Card.Body className="pt-3 pb-0">
                   <ListGroup variant="flush">
                     {order.items.map((it) => (
-                      <ListGroup.Item key={it.productId} className="px-0">
+                      <ListGroup.Item
+                        key={it.variantId || it.productId}
+                        className="px-0"
+                      >
                         <Row className="g-3 align-items-center">
                           <Col xs={3} md={2}>
                             <div className="border rounded p-1 bg-light">
@@ -327,41 +411,58 @@ export default function AccountOrderHistory() {
                       {currency(totalPayable)}
                     </span>
                   </div>
+                  <div className="d-flex flex-column align-items-end gap-1">
+                    <div className="d-flex gap-2 justify-content-end">
+                      {order.status === STATUS.PENDING && (
+                        <Button
+                          variant="outline-dark"
+                          onClick={() => handleCancel(order)}
+                        >
+                          <span className="small">Hủy đơn hàng</span>
+                        </Button>
+                      )}
 
-                  <div className="d-flex gap-2 justify-content-end">
-                    {order.status === STATUS.PENDING && (
-                      <Button
-                        variant="outline-dark"
-                        onClick={() => handleCancel(order)}
-                      >
-                        <span className="small">Hủy đơn hàng</span>
-                      </Button>
-                    )}
-
-                    {order.status === STATUS.CANCELED && (
-                      <Button
-                        variant="danger"
-                        onClick={() => handleReorder(order)}
-                      >
-                        <span className="small">Mua lại</span>
-                      </Button>
-                    )}
-
-                    {order.status === STATUS.COMPLETED && (
-                      <>
+                      {order.status === STATUS.CANCELED && (
                         <Button
                           variant="danger"
                           onClick={() => handleReorder(order)}
+                          disabled={reorderLoadingId === order._id}
                         >
-                          <span className="small">Mua lại</span>
+                          <span className="small">
+                            {reorderLoadingId === order._id
+                              ? "Đang kiểm tra..."
+                              : "Mua lại"}
+                          </span>
                         </Button>
-                        <Button
-                          variant="outline-dark"
-                          onClick={() => handleReview(order)}
-                        >
-                          <span className="small">Đánh giá sản phẩm</span>
-                        </Button>
-                      </>
+                      )}
+
+                      {order.status === STATUS.COMPLETED && (
+                        <>
+                          <Button
+                            variant="danger"
+                            onClick={() => handleReorder(order)}
+                            disabled={reorderLoadingId === order._id}
+                          >
+                            <span className="small">
+                              {reorderLoadingId === order._id
+                                ? "Đang kiểm tra..."
+                                : "Mua lại"}
+                            </span>
+                          </Button>
+                          <Button
+                            variant="outline-dark"
+                            onClick={() => handleReview(order)}
+                          >
+                            <span className="small">Đánh giá sản phẩm</span>
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    {/* block hiển thị lỗi tồn kho */}
+                    {reorderErrors[order._id] && (
+                      <div className="text-danger small text-end">
+                        {reorderErrors[order._id]}
+                      </div>
                     )}
                   </div>
                 </Card.Footer>

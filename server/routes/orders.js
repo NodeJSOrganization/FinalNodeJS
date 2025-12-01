@@ -6,6 +6,7 @@ const {
   getMyOrders,
   getOrderById,
   cancelMyOrder,
+  checkReorderStock,
 } = require("../controllers/orderController");
 
 const { protect, authorize, protectOptional } = require("../middleware/auth");
@@ -29,5 +30,7 @@ router.route("/myorders").get(protect, getMyOrders);
 router.route("/:id").get(protect, getOrderById);
 // Route để hủy đơn hàng của chính mình: PATCH /api/v1/orders/:id/cancel
 router.route("/:id/cancel").patch(protect, cancelMyOrder);
+// check tồn kho cho “mua lại”
+router.route("/check-reorder").post(protect, checkReorderStock);
 
 module.exports = router;
