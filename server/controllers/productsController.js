@@ -1,6 +1,7 @@
 // controllers/productsController.js
 const Product = require("../models/Product");
 const Category = require("../models/Category");
+const Order = require("../models/Order");
 const Brand = require("../models/Brand");
 const cloudinary = require("../config/cloudinary");
 
@@ -19,6 +20,63 @@ const cleanupFilesOnError = (files) => {
       console.error(`Failed to delete temp file: ${path}`, err)
     )
   );
+};
+
+// @desc    Lấy danh sách sản phẩm bán chạy nhất
+// @route   GET /api/v1/products/best-sellers
+// @access  Public
+exports.getBestSellers = async (req, res, next) => {
+  try {
+    const limit = 5;
+
+    const aggregatedData = await Order.aggregate([
+      { $unwind: "$items" },
+
+      {
+        $match: {
+          "items.product": {
+            $ne: null,
+            $exists: true,
+          },
+        },
+      },
+
+      {
+        $group: {
+          _id: "$items.product",
+          totalQuantitySold: { $sum: "$items.quantity" },
+        },
+      },
+
+      { $sort: { totalQuantitySold: -1 } },
+      { $limit: limit },
+    ]);
+
+    const productIds = aggregatedData.map((item) => item._id);
+
+    const bestSellersProducts = await Product.find({ _id: { $in: productIds } })
+      .populate("category", "name")
+      .populate("brand", "name logo");
+
+    const sortedBestSellers = productIds
+      .map((id) =>
+        bestSellersProducts.find((p) => p._id.toString() === id.toString())
+      )
+      .filter(Boolean);
+
+    res.status(200).json({
+      success: true,
+      count: sortedBestSellers.length,
+      data: sortedBestSellers,
+    });
+  } catch (error) {
+    console.error("LỖI AGGREGATION BEST SELLERS:", error);
+    res.status(500).json({
+      success: false,
+      msg: "Lỗi Server: Không thể tính toán Best Sellers.",
+      error: error.message,
+    });
+  }
 };
 
 // @desc    Tạo sản phẩm mới

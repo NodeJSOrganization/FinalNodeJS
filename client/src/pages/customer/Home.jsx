@@ -32,6 +32,7 @@ const Home = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [bestSellers, setBestSellers] = useState([]);
 
   const allProducts = useSelector((state) => state.product.products);
 
@@ -40,12 +41,17 @@ const Home = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [productsResponse, categoriesResponse, brandsResponse] =
-          await Promise.all([
-            axios.get("/api/v1/products"),
-            axios.get("/api/v1/categories"),
-            axios.get("/api/v1/brands"),
-          ]);
+        const [
+          productsResponse,
+          categoriesResponse,
+          brandsResponse,
+          bestSellersResponse,
+        ] = await Promise.all([
+          axios.get("/api/v1/products"),
+          axios.get("/api/v1/categories"),
+          axios.get("/api/v1/brands"),
+          axios.get("/api/v1/products/best-sellers"),
+        ]);
 
         dispatch(setProducts(productsResponse.data.data));
 
@@ -56,6 +62,7 @@ const Home = () => {
         );
 
         setBrands(brandsResponse.data.data);
+        setBestSellers(bestSellersResponse.data.data);
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu trang chủ:", err);
         setError("Không thể tải được dữ liệu. Vui lòng thử lại sau.");
@@ -66,8 +73,6 @@ const Home = () => {
 
     fetchHomeData();
   }, [dispatch]);
-
-  const bestSellers = [];
 
   const filteredProductsByTab = useMemo(() => {
     if (activeTab === "all") return allProducts;

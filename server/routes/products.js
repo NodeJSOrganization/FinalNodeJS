@@ -7,6 +7,7 @@ const {
   deleteProduct,
   deleteAllProducts,
   getProduct,
+  getBestSellers,
 } = require("../controllers/productsController");
 const { protect, authorize } = require("../middleware/auth");
 const upload = require("../middleware/upload"); // Import instance multer chung
@@ -24,6 +25,8 @@ const updateUpload = upload.fields([
   { name: "new_main_images", maxCount: 5 },
   { name: "new_variant_images", maxCount: 10 },
 ]);
+
+router.route("/best-sellers").get(getBestSellers);
 
 router
   .route("/")

@@ -3,23 +3,63 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { Link } from "react-router-dom";
 
+const currencyFormat = (v) => {
+  return Number(v || 0).toLocaleString("vi-VN");
+};
+
 const BestSeller = ({ bestSellers }) => {
   const settings = {
     dots: false,
     infinite: true,
     speed: 500,
-    slidesToShow: 4,
+    slidesToShow: Math.min(bestSellers.length, 4),
     slidesToScroll: 1,
     autoplay: true,
     autoplaySpeed: 3000,
     arrows: true,
+    responsive: [
+      {
+        breakpoint: 1024,
+        settings: {
+          slidesToShow: 3,
+        },
+      },
+      {
+        breakpoint: 600,
+        settings: {
+          slidesToShow: 2,
+        },
+      },
+      {
+        breakpoint: 480,
+        settings: {
+          slidesToShow: 1,
+        },
+      },
+    ],
   };
+
+  if (!bestSellers || bestSellers.length === 0) {
+    return (
+      <div
+        className="text-center py-4 text-muted"
+        style={{
+          background: "linear-gradient(135deg, #4facfe, #00f2fe)",
+          borderRadius: "12px",
+          margin: "20px 0",
+        }}
+      >
+        <p className="mb-0">
+          Hiện chưa có sản phẩm bán chạy nhất nào được xác định.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
       className="mb-2 position-relative"
       style={{
-        // background: "linear-gradient(135deg, #f09819, #ff512f)",
         background: "linear-gradient(135deg, #4facfe, #00f2fe)",
         borderRadius: "12px",
         padding: "16px",
@@ -43,10 +83,10 @@ const BestSeller = ({ bestSellers }) => {
       </div>
 
       <Slider {...settings}>
-        {bestSellers.map((p, index) => (
+        {bestSellers.map((p) => (
           <Link
-            to={`/${p.category}/${p.id}`}
-            key={index}
+            to={`/products/${p._id}`}
+            key={p._id}
             style={{ padding: "0 8px", textDecoration: "none" }}
           >
             <div
@@ -57,11 +97,15 @@ const BestSeller = ({ bestSellers }) => {
                 color: "#000",
                 textAlign: "center",
                 marginRight: "12px",
+                height: "300px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
               }}
             >
               <div className="d-flex align-items-center justify-content-center">
                 <img
-                  src={p.images[0]}
+                  src={p.images[0]?.url || p.variants[0]?.image?.url}
                   alt={p.name}
                   style={{
                     height: "140px",
@@ -72,14 +116,22 @@ const BestSeller = ({ bestSellers }) => {
               </div>
 
               <h6 style={{ fontWeight: "bold" }}>{p.name}</h6>
+
+              {/* Giá sản phẩm (Giá bán của biến thể đầu tiên) */}
               <p style={{ color: "green", fontWeight: "bold" }}>
-                {p.variants[0].sellingPrice}₫
+                {currencyFormat(p.variants[0]?.sellingPrice)}₫
               </p>
+
+              {/* Hiển thị thương hiệu nếu có */}
+              <div className="small text-muted">
+                {p.brand?.name || "Chưa rõ Brand"}
+              </div>
             </div>
           </Link>
         ))}
       </Slider>
 
+      {/* Các phần tử trang trí (Quà tặng) */}
       <span
         className="position-absolute fs-1"
         style={{
