@@ -13,9 +13,9 @@ const ProductItem = ({ product }) => {
     <div
       onClick={handleMoveToProductDetail}
       className="text-decoration-none"
-      style={{ cursor: "pointer" }}
+      style={{ cursor: "pointer", height: "100%" }}
     >
-      <div className="card h-100 border-0 shadow-sm rounded-3 overflow-hidden">
+      <div className="card border-0 shadow-sm rounded-3 overflow-hidden h-100">
         <img
           src={
             product.images && product.images.length > 0
