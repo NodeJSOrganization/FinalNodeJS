@@ -1,8 +1,9 @@
 // client/src/pages/AccountOrderHistory.jsx
 import { useMemo, useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import axios from "axios";
 import { createOrderSummary } from "../../../../features/order/orderReducer.js";
 import {
   Badge,
@@ -16,7 +17,7 @@ import {
   ListGroup,
   Nav,
   Row,
-  Collapse,
+  Modal,
 } from "react-bootstrap";
 import "../../../styles/AccountOrderHistory.css";
 import AccountOrderDetail from "../AccountOrderDetail/index.jsx";
@@ -92,6 +93,13 @@ export default function AccountOrderHistory() {
   const [error, setError] = useState("");
   const [reorderLoadingId, setReorderLoadingId] = useState(null);
   const [reorderErrors, setReorderErrors] = useState({});
+  const [reviewingOrder, setReviewingOrder] = useState(null);
+  const [reviewForm, setReviewForm] = useState({}); // { productId: { rating, text } }
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewedOrders, setReviewedOrders] = useState({});
+
+  const auth = useSelector((state) => state.auth); // tuỳ slice, chỉnh nếu khác
+  const token = auth?.token;
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -241,8 +249,79 @@ export default function AccountOrderHistory() {
   };
 
   const handleReview = (order) => {
-    console.log("Review order:", order.orderId);
-    alert(`Đi đến trang đánh giá cho đơn ${order.orderId}`);
+    // khởi tạo form review cho từng product trong đơn
+    const initial = {};
+    order.items.forEach((it) => {
+      initial[it.productId] = {
+        rating: 5, // default 5 sao
+        text: "", // chưa có nhận xét
+      };
+    });
+
+    setReviewForm(initial);
+    setReviewingOrder(order);
+  };
+
+  const handleSubmitReviews = async () => {
+    if (!reviewingOrder) return;
+
+    try {
+      setReviewSubmitting(true);
+
+      const config = { headers: { "Content-Type": "application/json" } };
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      // tạo danh sách request cho những sản phẩm có rating / text
+      const requests = reviewingOrder.items
+        .map((it) => {
+          const data = reviewForm[it.productId];
+          if (!data) return null;
+
+          const hasText = data.text && data.text.trim() !== "";
+          const hasRating = data.rating && data.rating > 0;
+
+          if (!hasText && !hasRating) {
+            return null; // user không nhập gì → bỏ qua sản phẩm này
+          }
+
+          const body = {
+            rating: data.rating,
+            text: data.text,
+          };
+
+          return axios.post(
+            `/api/v1/reviews/product/${it.productId}`,
+            body,
+            config
+          );
+        })
+        .filter(Boolean);
+
+      if (requests.length === 0) {
+        toast.error("bạn chưa nhập đánh giá cho sản phẩm nào");
+        return;
+      }
+
+      await Promise.all(requests);
+
+      // đánh dấu đơn này đã được đánh giá
+      setReviewedOrders((prev) => ({
+        ...prev,
+        [reviewingOrder._id]: true,
+      }));
+
+      toast.success("cảm ơn bạn đã đánh giá sản phẩm");
+      setReviewingOrder(null); // đóng modal
+    } catch (err) {
+      console.error("lỗi gửi đánh giá:", err);
+      const msg =
+        err?.response?.data?.msg || "lỗi khi gửi đánh giá, vui lòng thử lại";
+      toast.error(msg);
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   return (
@@ -451,9 +530,18 @@ export default function AccountOrderHistory() {
                           </Button>
                           <Button
                             variant="outline-dark"
-                            onClick={() => handleReview(order)}
+                            onClick={() => {
+                              if (!reviewedOrders[order._id]) {
+                                handleReview(order);
+                              }
+                            }}
+                            disabled={!!reviewedOrders[order._id]}
                           >
-                            <span className="small">Đánh giá sản phẩm</span>
+                            <span className="small">
+                              {reviewedOrders[order._id]
+                                ? "Đã đánh giá"
+                                : "Đánh giá sản phẩm"}
+                            </span>
                           </Button>
                         </>
                       )}
@@ -484,6 +572,114 @@ export default function AccountOrderHistory() {
             </div>
           )}
         </div>
+      )}
+      {/* popup đánh giá sản phẩm trong đơn */}
+      {reviewingOrder && (
+        <Modal
+          show={!!reviewingOrder}
+          onHide={() => setReviewingOrder(null)}
+          size="lg"
+          centered
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>
+              Đánh giá sản phẩm trong đơn {reviewingOrder.orderId}
+            </Modal.Title>
+          </Modal.Header>
+
+          <Modal.Body>
+            {reviewingOrder.items.map((it) => {
+              const form = reviewForm[it.productId] || {};
+
+              return (
+                <Card key={it.variantId || it.productId} className="mb-3">
+                  <Card.Body>
+                    <div className="d-flex gap-3">
+                      <Image
+                        src={it.image}
+                        alt={it.name}
+                        style={{
+                          width: 64,
+                          height: 64,
+                          objectFit: "cover",
+                        }}
+                        rounded
+                      />
+                      <div className="flex-grow-1">
+                        <div className="fw-semibold">{it.name}</div>
+                        <div className="text-muted small mb-2">
+                          phân loại: {it.variant} • x{it.qty}
+                        </div>
+
+                        <Form.Group className="mb-2">
+                          <Form.Label className="small mb-1">
+                            đánh giá sao
+                          </Form.Label>
+                          <Form.Select
+                            value={form.rating || 5}
+                            onChange={(e) =>
+                              setReviewForm((prev) => ({
+                                ...prev,
+                                [it.productId]: {
+                                  ...prev[it.productId],
+                                  rating: Number(e.target.value),
+                                },
+                              }))
+                            }
+                          >
+                            <option value={5}>5 sao</option>
+                            <option value={4}>4 sao</option>
+                            <option value={3}>3 sao</option>
+                            <option value={2}>2 sao</option>
+                            <option value={1}>1 sao</option>
+                          </Form.Select>
+                        </Form.Group>
+
+                        <Form.Group>
+                          <Form.Label className="small mb-1">
+                            nhận xét của bạn
+                          </Form.Label>
+                          <Form.Control
+                            as="textarea"
+                            rows={2}
+                            value={form.text || ""}
+                            onChange={(e) =>
+                              setReviewForm((prev) => ({
+                                ...prev,
+                                [it.productId]: {
+                                  ...prev[it.productId],
+                                  text: e.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="sản phẩm dùng có tốt không, ưu / nhược điểm..."
+                          />
+                        </Form.Group>
+                      </div>
+                    </div>
+                  </Card.Body>
+                </Card>
+              );
+            })}
+          </Modal.Body>
+
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => setReviewingOrder(null)}
+              disabled={reviewSubmitting}
+            >
+              đóng
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleSubmitReviews}
+              disabled={reviewSubmitting}
+            >
+              {reviewSubmitting ? "đang gửi..." : "gửi đánh giá"}
+            </Button>
+          </Modal.Footer>
+        </Modal>
       )}
     </Container>
   );
