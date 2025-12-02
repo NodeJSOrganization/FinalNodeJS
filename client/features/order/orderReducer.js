@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
+import { updateUserInState } from "../auth/authSlice";
 
 const API_HOST = "https://provinces.open-api.vn/api/";
 
@@ -49,6 +50,10 @@ export const createOrder = createAsyncThunk(
         config.headers["Authorization"] = `Bearer ${token}`;
       }
       const response = await axios.post("/api/v1/orders", orderData, config);
+      if (response.data.updatedUser) {
+        // Gọi action cập nhật User (Loyalty Points)
+        thunkAPI.dispatch(updateUserInState(response.data.updatedUser));
+      }
       return response.data.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(

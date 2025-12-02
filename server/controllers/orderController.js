@@ -11,6 +11,8 @@ const currency = (v) =>
     v
   );
 
+const VND_PER_POINT = 1000;
+
 /**
  * @desc    Tạo đơn hàng mới
  * @route   POST /api/v1/orders
@@ -68,6 +70,49 @@ exports.createOrder = async (req, res) => {
     }
     await Promise.all(stockUpdateOperations);
 
+    const Discount = require("../models/Discount");
+    let voucherUsedDoc = null;
+    let userDoc = null;
+
+    if (userId) {
+      userDoc = await User.findById(userId);
+    }
+
+    if (selectedVoucher && selectedVoucher.code) {
+      // Vì selectedVoucher được gửi từ Frontend, ta tìm lại document gốc để thao tác
+      voucherUsedDoc = await Discount.findOne({ code: selectedVoucher.code });
+
+      if (voucherUsedDoc && voucherUsedDoc.quantity > 0) {
+        // Yêu cầu đề bài: Giảm số lượng
+        voucherUsedDoc.quantity -= 1;
+
+        // Tùy chọn: Đổi status thành 'inactive' nếu số lượng = 0
+        if (voucherUsedDoc.quantity === 0) {
+          voucherUsedDoc.status = "inactive";
+        }
+
+        // Sẽ lưu document này sau khi tạo Order thành công (để thêm order._id vào ordersUsed)
+      } else {
+        // Trường hợp lỗi (Mã hết hạn hoặc hết số lượng sau khi người dùng áp dụng)
+        // Lý tưởng là bạn nên loại bỏ discount này khỏi summary nếu nó không hợp lệ nữa.
+        // Tuy nhiên, vì đây là luồng thành công, ta chỉ cần bỏ qua việc cập nhật nếu nó không hợp lệ.
+        // Để an toàn, có thể throw error nếu voucher không còn hợp lệ ở đây.
+        // throw new Error(`Mã giảm giá ${selectedVoucher.code} không còn hiệu lực.`);
+      }
+    }
+
+    const pointsToDeduct = summary.pointsDiscount / VND_PER_POINT;
+
+    if (userDoc && pointsToDeduct > 0) {
+      if (userDoc.loyaltyPoints >= pointsToDeduct) {
+        userDoc.loyaltyPoints -= pointsToDeduct;
+        // Lưu ý: Không lưu userDoc ở đây, chúng ta sẽ lưu sau khi cộng điểm mới.
+      } else {
+        // Lỗi bảo mật nếu frontend gửi sai số điểm
+        throw new Error("Số điểm thưởng không hợp lệ.");
+      }
+    }
+
     const order = await Order.create({
       user: userId,
       customerInfo,
@@ -75,11 +120,31 @@ exports.createOrder = async (req, res) => {
       items: orderItems,
       summary,
       paymentMethod,
-      appliedVoucher: selectedVoucher,
+      appliedVoucher: selectedVoucher ? selectedVoucher.code : null,
       usedPoints:
         summary.pointsDiscount > 0 ? summary.pointsDiscount / 1000 : 0,
       statusHistory: [{ status: "pending" }],
     });
+
+    if (voucherUsedDoc) {
+      // Thêm ID đơn hàng vừa tạo vào danh sách ordersUsed
+      voucherUsedDoc.ordersUsed.push(order._id);
+      await voucherUsedDoc.save(); // LƯU VOUCHER VỚI SỐ LƯỢNG MỚI VÀ LỊCH SỬ DÙNG
+    }
+
+    if (userDoc) {
+      // Giá trị đơn hàng không bao gồm phí vận chuyển và giảm giá từ điểm
+      const purchaseValue = summary.subtotal - summary.voucherDiscount;
+
+      // Tính 10% giá trị đơn hàng (purchaseValue) dưới dạng điểm
+      // Ví dụ: 10% của 1,000,000 VND = 100,000 VND. 100,000 VND / 1000 = 100 điểm.
+      const pointsEarned = Math.floor((purchaseValue * 0.1) / VND_PER_POINT);
+
+      userDoc.loyaltyPoints += pointsEarned;
+
+      // Lưu tài liệu User đã cập nhật điểm (trừ điểm đã dùng + cộng điểm mới)
+      await userDoc.save();
+    }
 
     if (userId) {
       const variantIdsToRemove = orderItems.map((item) => item.variant._id);
@@ -230,7 +295,15 @@ exports.createOrder = async (req, res) => {
       );
     }
 
-    res.status(201).json({ success: true, data: order });
+    let updatedUser = null;
+    if (userDoc) {
+      updatedUser = userDoc.toObject();
+      delete updatedUser.password;
+    }
+
+    res
+      .status(201)
+      .json({ success: true, data: order, updatedUser: updatedUser });
   } catch (error) {
     console.error("Lỗi khi tạo đơn hàng:", error);
     res.status(500).json({

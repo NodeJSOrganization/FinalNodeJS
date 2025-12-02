@@ -296,7 +296,7 @@ export default function OrderPage() {
           </Col>
 
           <Col md={5}>
-            <Card className="mb-4 shadow-sm " style={{ top: "20px" }}>
+            <Card className="shadow-sm ">
               <Card.Header as="h5">
                 Sản phẩm đã chọn ({orderItems.length})
               </Card.Header>

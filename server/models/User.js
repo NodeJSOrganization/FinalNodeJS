@@ -70,6 +70,11 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    loyaltyPoints: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     // Thông tin xác thực từ nhà cung cấp bên thứ ba (Social Login)
     authProvider: {
       type: String,

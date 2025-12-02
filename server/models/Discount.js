@@ -1,39 +1,48 @@
 // models/Discount.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const DiscountSchema = new mongoose.Schema({
+const DiscountSchema = new mongoose.Schema(
+  {
     code: {
-        type: String,
-        required: [true, 'Vui lòng nhập mã giảm giá'],
-        unique: true,
-        trim: true,
-        uppercase: true // Tự động chuyển mã thành chữ hoa
+      type: String,
+      required: [true, "Vui lòng nhập mã giảm giá"],
+      unique: true,
+      trim: true,
+      uppercase: true, // Tự động chuyển mã thành chữ hoa
     },
     description: {
-        type: String,
-        required: [true, 'Vui lòng nhập mô tả']
+      type: String,
+      required: [true, "Vui lòng nhập mô tả"],
     },
     type: {
-        type: String,
-        required: true,
-        enum: ['percent', 'fixed_amount'], // Giảm theo % hoặc giảm số tiền cố định
-        default: 'fixed_amount'
+      type: String,
+      required: true,
+      enum: ["percent", "fixed_amount"], // Giảm theo % hoặc giảm số tiền cố định
+      default: "fixed_amount",
     },
     value: {
-        type: Number,
-        required: [true, 'Vui lòng nhập giá trị giảm giá']
+      type: Number,
+      required: [true, "Vui lòng nhập giá trị giảm giá"],
     },
     quantity: {
-        type: Number,
-        required: [true, 'Vui lòng nhập số lượng mã']
+      type: Number,
+      required: [true, "Vui lòng nhập số lượng mã"],
     },
     status: {
-        type: String,
-        enum: ['active', 'inactive'],
-        default: 'active'
-    }
-}, {
-    timestamps: true
-});
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
+    },
+    ordersUsed: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Order",
+      },
+    ],
+  },
+  {
+    timestamps: true,
+  }
+);
 
-module.exports = mongoose.model('Discount', DiscountSchema);
+module.exports = mongoose.model("Discount", DiscountSchema);

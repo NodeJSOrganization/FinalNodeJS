@@ -89,13 +89,11 @@ export const loginWithFacebook = createAsyncThunk(
 export const authSlice = createSlice({
   name: "auth",
   initialState,
-  // Reducers đồng bộ: các hành động không cần gọi API
   reducers: {
-    // **THAY ĐỔI LOGIC LOGOUT ĐỂ CLEAR GIỎ HÀNG**
     logout: (state) => {
       localStorage.removeItem("user");
       localStorage.removeItem("token");
-      localStorage.removeItem("guestCart"); // Xóa cả giỏ hàng của khách khi logout
+      localStorage.removeItem("guestCart");
       state.user = null;
       state.token = null;
       state.isSuccess = false;
@@ -109,12 +107,11 @@ export const authSlice = createSlice({
     },
   },
 
-  // Extra Reducers: xử lý các trạng thái của thunk bất đồng bộ (loginUser)
   extraReducers: (builder) => {
     builder
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
-        state.isError = false; // Reset lỗi khi bắt đầu request mới
+        state.isError = false;
         state.isSuccess = false;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
@@ -123,8 +120,8 @@ export const authSlice = createSlice({
         state.isError = false;
         state.message = "";
         state.isAuthenticated = true;
-        state.user = action.payload.data; // Cập nhật user từ payload trả về
-        state.token = action.payload.token; // Cập nhật token
+        state.user = action.payload.data;
+        state.token = action.payload.token;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
