@@ -66,3 +66,17 @@
   max-width: 400px; /* Giới hạn chiều rộng tối đa của biểu đồ để không quá to */
   margin: auto; /* Căn giữa biểu đồ trong card */
 }
+
+/* Khắc phục lỗi icon lịch (date picker) bị ẩn */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    display: block !important;
+    opacity: 1 !important;
+    cursor: pointer;
+    /* Tăng kích thước icon một chút cho dễ bấm */
+    width: 20px;
+    height: 20px;
+    
+    /* Nếu nền của bạn là màu tối mà icon bị đen (không thấy), 
+       hãy bỏ comment dòng dưới để đảo màu icon sang trắng: */
+    /* filter: invert(1); */
+}

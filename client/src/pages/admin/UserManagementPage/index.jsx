@@ -225,6 +225,10 @@ const UserManagementPage = () => {
     return `${addr.streetAddress}, ${addr.ward}, ${addr.district}, ${addr.province}`;
   };
 
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
   return (
     <div className="p-4">
       <Card className="card-custom">

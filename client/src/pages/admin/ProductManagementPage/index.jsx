@@ -77,6 +77,10 @@ const ProductManagementPage = () => {
     }
   };
 
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
   return (
     <div className="p-4">
       <Row className="justify-content-center">

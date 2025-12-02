@@ -5,6 +5,8 @@ const {
   getAllOrders,
   getMyOrders,
   getOrderById,
+  updateOrderStatus, 
+  deleteOrder,
   cancelMyOrder,
   checkReorderStock,
 } = require("../controllers/orderController");

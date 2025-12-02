@@ -11,6 +11,21 @@ const currency = (v) =>
     v
   );
 
+
+// Helper function: Hoàn trả lại tồn kho khi hủy đơn
+async function restoreStock(orderItems) {
+    for (const item of orderItems) {
+        const product = await Product.findById(item.product);
+        if (product) {
+            const variant = product.variants.id(item.variant._id);
+            if (variant) {
+                variant.quantity += item.quantity;
+                await product.save();
+            }
+        }
+    }
+}
+
 const VND_PER_POINT = 1000;
 
 /**
@@ -432,6 +447,81 @@ exports.getOrderById = async (req, res) => {
     console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
     res.status(500).json({ success: false, msg: "Lỗi Server" });
   }
+};
+
+/**
+ * @desc    Cập nhật trạng thái đơn hàng (Admin)
+ * @route   PUT /api/v1/orders/:id
+ * @access  Private/Admin
+ */
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const { status } = req.body; // status gửi lên: 'confirmed', 'shipping', 'delivered', 'cancelled'
+        
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, msg: 'Không tìm thấy đơn hàng' });
+        }
+
+        // Nếu đơn hàng đã bị hủy trước đó, không cho phép cập nhật lại trạng thái khác (trừ khi code logic phức tạp hơn)
+        if (order.currentStatus === 'cancelled') {
+             return res.status(400).json({ success: false, msg: 'Đơn hàng này đã bị hủy, không thể thay đổi trạng thái.' });
+        }
+
+        // Cập nhật mảng lịch sử trạng thái
+        order.statusHistory.push({
+            status: status,
+            timestamp: Date.now()
+        });
+
+        // Schema của bạn có middleware pre('save') để tự cập nhật `currentStatus` dựa trên phần tử cuối của statusHistory
+        // nên ta chỉ cần save() là được.
+
+        // --- QUAN TRỌNG: Xử lý tồn kho ---
+        // Nếu Admin chuyển trạng thái thành 'cancelled' (Hủy đơn), ta phải cộng lại số lượng vào kho
+        if (status === 'cancelled') {
+            await restoreStock(order.items);
+        }
+
+        await order.save();
+
+        // (Tùy chọn) Gửi email thông báo cho khách hàng về việc thay đổi trạng thái tại đây
+        // await sendEmail(...)
+
+        res.status(200).json({ success: true, data: order });
+
+    } catch (error) {
+        console.error("Lỗi khi cập nhật đơn hàng:", error);
+        res.status(500).json({ success: false, msg: 'Lỗi Server', error: error.message });
+    }
+};
+
+/**
+ * @desc    Xóa đơn hàng (Admin)
+ * @route   DELETE /api/v1/orders/:id
+ * @access  Private/Admin
+ */
+exports.deleteOrder = async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, msg: 'Không tìm thấy đơn hàng' });
+        }
+
+        // Có thể thêm logic: Chỉ cho phép xóa đơn 'pending' hoặc 'cancelled'
+        // if (order.currentStatus !== 'cancelled' && order.currentStatus !== 'pending') {
+        //     return res.status(400).json({ success: false, msg: 'Chỉ có thể xóa đơn hàng đã hủy hoặc đang chờ xử lý.' });
+        // }
+
+        await order.deleteOne();
+
+        res.status(200).json({ success: true, data: {}, msg: "Đã xóa đơn hàng thành công" });
+    } catch (error) {
+        console.error("Lỗi khi xóa đơn hàng:", error);
+        res.status(500).json({ success: false, msg: 'Lỗi Server', error: error.message });
+    }
 };
 
 exports.cancelMyOrder = async (req, res) => {
