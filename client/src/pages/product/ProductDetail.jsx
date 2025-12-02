@@ -30,6 +30,11 @@ import { addItem, toggleItem } from "../../../features/cart/cartReducer";
 import ProductReviews from "../../components/product/ProductReviews";
 import RelatedProducts from "../../components/product/RelatedProduct";
 
+// Helper định dạng tiền tệ
+const currencyFormat = (v) => {
+  return Number(v || 0).toLocaleString("vi-VN");
+};
+
 const VariantStyles = () => (
   <style>{`
     .option-group-label { font-weight: bold; margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.9rem; color: #555; }
@@ -72,6 +77,7 @@ const ProductDetail = () => {
       if (!id) return;
       dispatch(getProductStart());
       try {
+        // API call sẽ trả về sản phẩm đã được tính toán giá khuyến mãi
         const { data } = await axios.get(`/api/v1/products/${id}`);
         dispatch(getProductSuccess(data.data));
       } catch (err) {
@@ -199,8 +205,22 @@ const ProductDetail = () => {
     }
   };
 
+  // ************* FIX 1: TÍNH TOÁN GIÁ CỐ ĐỊNH (USEMEMO) **************
+  const { originalPrice, finalPrice, isDiscounted } = useMemo(() => {
+    const originalPriceCalc = currentVariant?.sellingPrice || 0;
+    // Sử dụng giá finalPrice được tính toán từ backend, nếu không có thì dùng giá gốc
+    const finalPriceCalc = selectedProduct?.finalPrice || originalPriceCalc;
+
+    return {
+      originalPrice: originalPriceCalc,
+      finalPrice: finalPriceCalc,
+      isDiscounted: finalPriceCalc < originalPriceCalc,
+    };
+  }, [selectedProduct, currentVariant]);
+  // *******************************************************************
+
   const createItemData = () => {
-    if (!currentVariant) return null;
+    if (!currentVariant || !finalPrice) return null; // Dùng finalPrice đã tính
 
     return {
       // Dữ liệu cần cho API (nếu đã đăng nhập)
@@ -209,18 +229,18 @@ const ProductDetail = () => {
       quantity: 1,
 
       // Dữ liệu đầy đủ cần cho localStorage (nếu là khách)
-      productSnapshot: {
-        _id: selectedProduct._id,
-        name: selectedProduct.name,
-        images: selectedProduct.images,
-      },
       variantSnapshot: {
         _id: currentVariant._id,
         name: selectedProduct.name,
         variantName: `${currentVariant.color} - ${currentVariant.performance}`,
         image: currentVariant.image?.url,
-        price: currentVariant.sellingPrice,
+        price: finalPrice, // <-- SỬ DỤNG GIÁ CUỐI CÙNG (ĐÃ GIẢM) TỪ useMemo
         sku: currentVariant.sku,
+      },
+      productSnapshot: {
+        _id: selectedProduct._id,
+        name: selectedProduct.name,
+        images: selectedProduct.images,
       },
     };
   };
@@ -252,8 +272,6 @@ const ProductDetail = () => {
     dispatch(addItem(itemData))
       .unwrap()
       .then(() => {
-        // BƯỚC 2: Điều hướng đến trang giỏ hàng và "gửi kèm" thông tin
-        // về variantId cần được tick.
         navigate("/cart", { state: { checkoutVariantId: currentVariant._id } });
       })
       .catch((errorMsg) => {
@@ -343,16 +361,21 @@ const ProductDetail = () => {
           <Col md={6}>
             <h2>{selectedProduct.name}</h2>
             <p className="text-muted">{currentVariant.performance}</p>
+
+            {/* LOGIC HIỂN THỊ GIÁ CẬP NHẬT */}
             <div className="price-box p-3 my-3">
-              <span className="main-price">
-                {currentVariant.sellingPrice.toLocaleString("vi-VN")}đ
-              </span>
-              {currentVariant.costPrice > currentVariant.sellingPrice && (
+              {/* Giá cuối cùng (Luôn hiển thị) */}
+              <span className="main-price">{currencyFormat(finalPrice)}₫</span>
+
+              {/* Giá gốc bị gạch ngang (Chỉ hiển thị khi có khuyến mãi) */}
+              {isDiscounted && (
                 <span className="original-price ms-2">
-                  {currentVariant.costPrice.toLocaleString("vi-VN")}đ
+                  {currencyFormat(originalPrice)}₫
                 </span>
               )}
             </div>
+            {/* KẾT THÚC LOGIC HIỂN THỊ GIÁ */}
+
             <div className="border p-3 rounded">
               <h5 className="mb-3">Lựa chọn cấu hình</h5>
               {Object.entries(availableOptions).map(([key, values]) => (

@@ -33,6 +33,7 @@ const Home = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
   const [bestSellers, setBestSellers] = useState([]);
+  const [promotions, setPromotions] = useState([]);
 
   const allProducts = useSelector((state) => state.product.products);
 
@@ -46,11 +47,13 @@ const Home = () => {
           categoriesResponse,
           brandsResponse,
           bestSellersResponse,
+          promotionsResponse,
         ] = await Promise.all([
           axios.get("/api/v1/products"),
           axios.get("/api/v1/categories"),
           axios.get("/api/v1/brands"),
           axios.get("/api/v1/products/best-sellers"),
+          axios.get("/api/v1/promotions"),
         ]);
 
         dispatch(setProducts(productsResponse.data.data));
@@ -63,6 +66,7 @@ const Home = () => {
 
         setBrands(brandsResponse.data.data);
         setBestSellers(bestSellersResponse.data.data);
+        setPromotions(promotionsResponse.data.data);
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu trang chủ:", err);
         setError("Không thể tải được dữ liệu. Vui lòng thử lại sau.");
@@ -97,6 +101,7 @@ const Home = () => {
     );
   }
 
+  // console.log("Promotions on Home Page:", promotions);
   if (error) {
     return (
       <Container className="py-5">
@@ -190,7 +195,7 @@ const Home = () => {
         <Row xs={2} md={3} lg={5} className="g-4">
           {newProducts.map((product) => (
             <Col key={product._id}>
-              <ProductItem product={product} />
+              <ProductItem product={product} promotions={promotions} />
             </Col>
           ))}
         </Row>
@@ -268,7 +273,7 @@ const Home = () => {
             <Row xs={1} md={3} lg={5} className="g-4">
               {categoryProducts.map((product) => (
                 <Col key={product._id}>
-                  <ProductItem product={product} />
+                  <ProductItem product={product} promotions={promotions} />
                 </Col>
               ))}
             </Row>
@@ -295,7 +300,7 @@ const Home = () => {
         <Row xs={1} md={3} lg={5} className="g-4">
           {filteredProductsByTab.map((product) => (
             <Col key={product._id}>
-              <ProductItem product={product} />
+              <ProductItem product={product} promotions={promotions} />
             </Col>
           ))}
         </Row>

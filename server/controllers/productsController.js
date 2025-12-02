@@ -1,9 +1,11 @@
 // controllers/productsController.js
 const Product = require("../models/Product");
 const Category = require("../models/Category");
+const Promotion = require("../models/Promotion");
 const Order = require("../models/Order");
 const Brand = require("../models/Brand");
 const cloudinary = require("../config/cloudinary");
+const mongoose = require("mongoose");
 
 // --- HELPER FUNCTION: Xóa file tạm của multer nếu có lỗi ---
 const fs = require("fs");
@@ -20,6 +22,54 @@ const cleanupFilesOnError = (files) => {
       console.error(`Failed to delete temp file: ${path}`, err)
     )
   );
+};
+
+const calculateFinalPrice = (product, promotions) => {
+  // 1. LẤY GIÁ GỐC AN TOÀN
+  // Dùng optional chaining (?.) và toán tử OR (||) để tránh lỗi nếu variants rỗng
+  let originalPrice = product.variants?.[0]?.sellingPrice || 0;
+  let finalPrice = originalPrice;
+  let bestPromotion = null;
+
+  // 2. TÌM KHUYẾN MÃI TỐT NHẤT
+  const applicablePromotions = promotions.filter(
+    (promo) =>
+      promo.status === "active" &&
+      new Date(promo.startDate) <= new Date() &&
+      new Date(promo.endDate) >= new Date() &&
+      promo.appliedProducts.some((p) => p.toString() === product._id.toString())
+  );
+
+  let maxReduction = 0;
+  applicablePromotions.forEach((promo) => {
+    let reduction = 0;
+    if (promo.type === "percent") {
+      reduction = originalPrice * (promo.value / 100);
+    } else if (promo.type === "fixed_amount") {
+      reduction = promo.value;
+    }
+
+    if (reduction > maxReduction) {
+      maxReduction = reduction;
+      bestPromotion = promo;
+    }
+  });
+
+  if (bestPromotion) {
+    finalPrice = originalPrice - maxReduction;
+  }
+
+  // 3. GÁN TRƯỜNG MỚI VÀ TRẢ VỀ
+  product.originalPrice = originalPrice;
+  product.finalPrice = Math.max(0, finalPrice);
+  product.appliedPromotion = bestPromotion
+    ? {
+        type: bestPromotion.type,
+        value: bestPromotion.value,
+      }
+    : null;
+
+  return product;
 };
 
 // @desc    Lấy danh sách sản phẩm bán chạy nhất
@@ -227,21 +277,45 @@ exports.getProducts = async (req, res, next) => {
 // @route   GET /api/v1/products/:id
 // @access  Public
 exports.getProduct = async (req, res, next) => {
+  // KIỂM TRA ĐỊNH DẠNG ID
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res
+      .status(400)
+      .json({ success: false, msg: "ID sản phẩm không đúng định dạng." });
+  }
+
   try {
-    const product = await Product.findById(req.params.id)
+    let product = await Product.findById(req.params.id)
       .populate("category", "name")
       .populate("brand", "name logo");
+
     if (!product) {
       return res
         .status(404)
         .json({ success: false, msg: `Không tìm thấy sản phẩm` });
     }
-    res.status(200).json({ success: true, data: product });
+
+    // 1. Tải tất cả khuyến mãi đang active
+    const promotions = await Promotion.find({
+      status: "active",
+      endDate: { $gte: new Date() },
+    });
+
+    // 2. Tính toán giá cuối cùng
+    // CHUYỂN ĐỔI SANG OBJECT TRƯỚC KHI CHỈNH SỬA
+    let productObject = product.toObject();
+    productObject = calculateFinalPrice(productObject, promotions);
+
+    // TRẢ VỀ KẾT QUẢ
+    res.status(200).json({ success: true, data: productObject });
   } catch (error) {
-    res.status(400).json({ success: false, msg: "ID không hợp lệ" });
+    // Lỗi 500 SERVER ERROR
+    console.error("LỖI SERVER TRONG getProduct:", error);
+    return res
+      .status(500)
+      .json({ success: false, msg: "Lỗi server nội bộ khi xử lý sản phẩm." });
   }
 };
-
 // @desc    Xóa một sản phẩm
 // @route   DELETE /api/v1/products/:id
 // @access  Private/Admin

@@ -100,6 +100,7 @@ export default function CartPage() {
 
   const selectedSubtotal = useMemo(() => {
     return selectedItems.reduce(
+      // SỬ DỤNG it.variant.price, giá này ĐÃ ĐƯỢC BACKEND TÍNH GIẢM
       (s, it) => s + it.variant.price * it.quantity,
       0
     );
@@ -232,80 +233,101 @@ export default function CartPage() {
         </thead>
         <tbody>
           {filteredItems && filteredItems.length > 0 ? (
-            filteredItems.map((it) => (
-              <tr key={it.variant._id}>
-                <td>
-                  <Form.Check
-                    type="checkbox"
-                    checked={it.checked || false}
-                    onChange={(e) =>
-                      toggleOne(it.variant._id, e.target.checked)
-                    }
-                  />
-                </td>
-                <td>
-                  <Row className="g-2 align-items-center">
-                    <Col xs="auto">
-                      <Image
-                        src={it.variant.image || it.product?.images[0]?.url}
-                        rounded
-                        width={72}
-                        height={72}
-                        style={{ objectFit: "contain" }}
-                      />
-                    </Col>
-                    <Col className="text-start">
-                      <div className="fw-semibold">{it.variant.name}</div>
-                      <div className="text-muted small">
-                        Phân loại: {it.variant.variantName}
-                      </div>
-                    </Col>
-                  </Row>
-                </td>
-                <td className="text-end">{currency(it.variant.price)}</td>
-                <td className="text-center">
-                  <div className="d-inline-flex align-items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline-secondary"
-                      onClick={() =>
-                        handleChangeQty(it.variant._id, it.quantity - 1)
+            filteredItems.map((it) => {
+              // Lấy giá trị từ Backend (Backend cần trả về cả originalPrice)
+              const finalPrice = it.variant.price;
+              const originalPrice = it.variant.originalPrice || finalPrice; // Fallback an toàn
+              const isDiscounted = finalPrice < originalPrice;
+
+              return (
+                <tr key={it.variant._id}>
+                  <td>
+                    <Form.Check
+                      type="checkbox"
+                      checked={it.checked || false}
+                      onChange={(e) =>
+                        toggleOne(it.variant._id, e.target.checked)
                       }
-                      disabled={it.quantity <= 1}
-                    >
-                      −
-                    </Button>
-                    <Form.Control
-                      value={it.quantity}
-                      readOnly
-                      className="text-center"
-                      style={{ width: 56 }}
                     />
+                  </td>
+                  <td>
+                    <Row className="g-2 align-items-center">
+                      <Col xs="auto">
+                        <Image
+                          src={it.variant.image || it.product?.images[0]?.url}
+                          rounded
+                          width={72}
+                          height={72}
+                          style={{ objectFit: "contain" }}
+                        />
+                      </Col>
+                      <Col className="text-start">
+                        <div className="fw-semibold">{it.variant.name}</div>
+                        <div className="text-muted small">
+                          Phân loại: {it.variant.variantName}
+                        </div>
+                      </Col>
+                    </Row>
+                  </td>
+                  <td className="text-end">
+                    {/* GIÁ CUỐI CÙNG (Đã giảm, Màu đỏ) */}
+                    <div className="fw-semibold text-danger">
+                      {currency(finalPrice)}
+                    </div>
+                    {/* GIÁ GỐC (Gạch ngang, Màu xám) */}
+                    {isDiscounted && (
+                      <div
+                        className="text-muted small"
+                        style={{ textDecoration: "line-through" }}
+                      >
+                        {currency(originalPrice)}
+                      </div>
+                    )}
+                  </td>
+                  <td className="text-center">
+                    <div className="d-inline-flex align-items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        onClick={() =>
+                          handleChangeQty(it.variant._id, it.quantity - 1)
+                        }
+                        disabled={it.quantity <= 1}
+                      >
+                        −
+                      </Button>
+                      <Form.Control
+                        value={it.quantity}
+                        readOnly
+                        className="text-center"
+                        style={{ width: 56 }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        onClick={() =>
+                          handleChangeQty(it.variant._id, it.quantity + 1)
+                        }
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </td>
+                  <td className="text-end text-danger fw-semibold">
+                    {currency(it.variant.price * it.quantity)}
+                  </td>
+                  <td className="text-center">
                     <Button
-                      size="sm"
-                      variant="outline-secondary"
-                      onClick={() =>
-                        handleChangeQty(it.variant._id, it.quantity + 1)
-                      }
+                      variant="link"
+                      className="text-dark p-0"
+                      onClick={() => removeOne(it.variant._id)}
                     >
-                      +
+                      Xóa
                     </Button>
-                  </div>
-                </td>
-                <td className="text-end text-danger fw-semibold">
-                  {currency(it.variant.price * it.quantity)}
-                </td>
-                <td className="text-center">
-                  <Button
-                    variant="link"
-                    className="text-dark p-0"
-                    onClick={() => removeOne(it.variant._id)}
-                  >
-                    Xóa
-                  </Button>
-                </td>
-              </tr>
-            ))
+                  </td>
+                </tr>
+              );
+            })
           ) : (
             <tr>
               <td colSpan={6} className="text-center py-5">

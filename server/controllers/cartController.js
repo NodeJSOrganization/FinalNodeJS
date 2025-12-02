@@ -1,7 +1,9 @@
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 const mongoose = require("mongoose");
+const Promotion = require("../models/Promotion"); // Đã xác nhận cần import
 
+// --- KHỐI HELPER FUNCTION CẦN THIẾT ---
 const findOrCreateCart = async (userId) => {
   let cart = await Cart.findOne({ user: userId });
   if (!cart) {
@@ -10,18 +12,93 @@ const findOrCreateCart = async (userId) => {
   return cart;
 };
 
+// Hàm Helper tính giá cuối cùng cho item trong giỏ hàng (Áp dụng logic khuyến mãi)
+const calculateFinalPriceForCart = (productId, originalPrice, promotions) => {
+  let finalPrice = originalPrice;
+
+  if (!promotions || promotions.length === 0) return originalPrice; // KHÔNG CÓ KHUYẾN MÃI
+
+  // Tìm khuyến mãi tốt nhất áp dụng cho sản phẩm này
+  const applicablePromotions = promotions.filter(
+    (promo) =>
+      promo.status === "active" &&
+      new Date(promo.startDate) <= new Date() &&
+      new Date(promo.endDate) >= new Date() &&
+      // Đảm bảo đối chiếu ID hợp lệ
+      promo.appliedProducts.some((p) => p.toString() === productId.toString())
+  );
+
+  let maxReduction = 0;
+  applicablePromotions.forEach((promo) => {
+    let reduction = 0;
+    if (promo.type === "percent") {
+      reduction = originalPrice * (promo.value / 100);
+    } else if (promo.type === "fixed_amount") {
+      reduction = promo.value;
+    }
+
+    if (reduction > maxReduction) {
+      maxReduction = reduction;
+    }
+  });
+
+  finalPrice = originalPrice - maxReduction;
+  return Math.max(0, finalPrice);
+};
+// ----------------------------------------
+
 // @desc    Lấy giỏ hàng của người dùng
 // @route   GET /api/v1/cart
 exports.getCart = async (req, res) => {
   try {
     const cart = await findOrCreateCart(req.user.id);
 
+    // FIX: Populate cần lấy Variants để tìm sellingPrice gốc
     await cart.populate({
       path: "items.product",
-      select: "name images",
+      select: "name images variants",
     });
 
-    res.status(200).json({ success: true, data: cart.items });
+    // Tải tất cả khuyến mãi đang active (An toàn, nếu không có sẽ là mảng rỗng)
+    const promotions = await Promotion.find({
+      status: "active",
+      endDate: { $gte: new Date() },
+    });
+
+    const itemsWithPrice = await Promise.all(
+      cart.items.map(async (item) => {
+        const productId = item.product._id;
+
+        // 1. TÌM BIẾN THỂ VÀ GIÁ GỐC
+        const variantDetails = item.product.variants.find((v) =>
+          v._id.equals(item.variant._id)
+        );
+
+        // Lấy giá gốc từ Product.variants.sellingPrice
+        const originalPrice =
+          variantDetails?.sellingPrice || item.variant.price || 0;
+
+        // 2. Tính giá cuối cùng (đã giảm)
+        const finalPrice = calculateFinalPriceForCart(
+          productId,
+          originalPrice,
+          promotions
+        );
+
+        // 3. Trả về item đã cập nhật giá và giá gốc (để hiển thị gạch ngang)
+        return {
+          ...item.toObject(),
+          product: item.product.toObject(),
+          variant: {
+            ...item.variant.toObject(),
+            price: finalPrice, // Giá đã giảm (sẽ được dùng cho tính toán tổng)
+            originalPrice: originalPrice, // <-- GIÁ GỐC ĐỂ HIỂN THỊ GẠCH NGANG
+          },
+        };
+      })
+    );
+
+    res.status(200).json({ success: true, data: itemsWithPrice });
   } catch (error) {
     console.error("Error in getCart:", error);
     res.status(500).json({ success: false, msg: "Lỗi Server" });
@@ -57,6 +134,7 @@ exports.addToCart = async (req, res) => {
     if (itemIndex > -1) {
       cart.items[itemIndex].quantity += quantity;
     } else {
+      // Khi thêm mới, LƯU GIÁ GỐC TỪ DB (variant.sellingPrice)
       cart.items.push({
         product: productId,
         variant: {
@@ -64,6 +142,7 @@ exports.addToCart = async (req, res) => {
           name: product.name,
           variantName: `${variant.color} - ${variant.performance}`,
           image: variant.image?.url,
+          // LƯU GIÁ GỐC ĐỂ getCart CÓ THỂ TÍNH TOÁN LẠI CHÍNH XÁC
           price: variant.sellingPrice,
           sku: variant.sku,
         },
@@ -73,9 +152,8 @@ exports.addToCart = async (req, res) => {
 
     await cart.save();
 
-    await cart.populate({ path: "items.product", select: "name images" });
-
-    res.status(200).json({ success: true, data: cart.items });
+    // Dùng getCart để trả về dữ liệu đã tính toán khuyến mãi
+    return exports.getCart(req, res);
   } catch (error) {
     console.error("Error in addToCart:", error);
     res
@@ -109,8 +187,9 @@ exports.updateCartItem = async (req, res) => {
         cart.items[itemIndex].quantity = quantity;
       }
       await cart.save();
-      await cart.populate({ path: "items.product", select: "name images" });
-      return res.status(200).json({ success: true, data: cart.items });
+
+      // Dùng getCart để trả về dữ liệu đã tính toán khuyến mãi
+      return exports.getCart(req, res);
     }
 
     return res
@@ -136,13 +215,10 @@ exports.removeCartItem = async (req, res) => {
         },
       },
       { new: true }
-    ).populate({ path: "items.product", select: "name images" });
+    );
 
-    if (!cart) {
-      return res.status(200).json({ success: true, data: [] });
-    }
-
-    res.status(200).json({ success: true, data: cart.items });
+    // Dùng getCart để trả về dữ liệu đã tính toán khuyến mãi
+    return exports.getCart(req, res);
   } catch (error) {
     console.error("Error in removeCartItem:", error);
     res.status(500).json({ success: false, msg: "Lỗi Server" });
@@ -152,19 +228,16 @@ exports.removeCartItem = async (req, res) => {
 // @desc    Hợp nhất giỏ hàng từ localStorage vào giỏ hàng trong DB khi user đăng nhập
 // @route   POST /api/v1/cart/merge
 exports.mergeCart = async (req, res) => {
-  // guestCartItems là mảng các item từ localStorage mà frontend gửi lên
   const { guestCartItems } = req.body;
 
   if (!Array.isArray(guestCartItems) || guestCartItems.length === 0) {
-    return res
-      .status(200)
-      .json({ success: true, msg: "Không có gì để hợp nhất." });
+    return exports.getCart(req, res); // Trả về giỏ hàng DB nếu không có gì để merge
   }
 
   try {
     const cart = await findOrCreateCart(req.user.id);
 
-    guestCartItems.forEach((guestItem) => {
+    guestCartItems.forEach(async (guestItem) => {
       const itemIndex = cart.items.findIndex((dbItem) =>
         dbItem.variant._id.equals(
           new mongoose.Types.ObjectId(guestItem.variant._id)
@@ -174,14 +247,16 @@ exports.mergeCart = async (req, res) => {
       if (itemIndex > -1) {
         cart.items[itemIndex].quantity += guestItem.quantity;
       } else {
+        // LƯU Ý: Ở đây, guestItem.variant.price có thể là giá giảm từ frontend,
+        // nhưng chúng ta vẫn lưu nó vào DB và để getCart tính toán lại.
         cart.items.push(guestItem);
       }
     });
 
     await cart.save();
-    await cart.populate({ path: "items.product", select: "name images" });
 
-    res.status(200).json({ success: true, data: cart.items });
+    // Dùng getCart để trả về dữ liệu đã tính toán khuyến mãi
+    return exports.getCart(req, res);
   } catch (error) {
     console.error("Error in mergeCart:", error);
     res.status(500).json({ success: false, msg: "Lỗi Server" });

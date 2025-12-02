@@ -1,30 +1,28 @@
-// routes/promotions.js // 
-const express = require('express');
+const express = require("express");
 const {
-    createPromotion,
-    getPromotions,
-    updatePromotion,
-    deletePromotion,
-    deleteAllPromotions,
-    getPromotion,
-} = require('../controllers/promotionsController');
+  createPromotion,
+  getPromotions,
+  updatePromotion,
+  deletePromotion,
+  deleteAllPromotions,
+  getPromotion,
+} = require("../controllers/promotionsController");
 
-// Import middleware xác thực và phân quyền
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize } = require("../middleware/auth");
 
 const router = express.Router();
 
-// Tất cả các route dưới đây đều yêu cầu đăng nhập và có quyền admin
-router.use(protect, authorize('admin'));
+router
+  .route("/")
+  .get(getPromotions) // Public access cho Frontend/Home Page
 
-router.route('/')
-    .get(getPromotions)
-    .post(createPromotion)
-    .delete(deleteAllPromotions);
+  .post(protect, authorize("admin"), createPromotion)
+  .delete(protect, authorize("admin"), deleteAllPromotions);
 
-router.route('/:id')
-    .get(getPromotion)
-    .put(updatePromotion)
-    .delete(deletePromotion);
+router
+  .route("/:id")
+  .get(protect, authorize("admin"), getPromotion)
+  .put(protect, authorize("admin"), updatePromotion)
+  .delete(protect, authorize("admin"), deletePromotion);
 
 module.exports = router;
