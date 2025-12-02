@@ -1,0 +1,116 @@
+/* src/pages/admin/OrderManagementPage/OrderManagementPage.css */
+
+/* --- Card Thống Kê --- */
+.stats-card {
+    border: none;
+    border-radius: 15px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+.stats-icon-wrapper {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+/* --- Bộ lọc & Toolbar --- */
+.filter-card {
+    border: none;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.search-input {
+    border-radius: 20px 0 0 20px !important;
+    border-right: none;
+}
+.search-btn {
+    border-radius: 0 20px 20px 0 !important;
+}
+
+/* --- Bảng Dữ Liệu --- */
+.table-hover tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.order-id-link {
+    text-decoration: none;
+    font-weight: 600;
+    color: #3b82f6;
+    transition: color 0.2s;
+}
+.order-id-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+/* --- Soft Status Badges (Nhãn trạng thái mềm mại) --- */
+.badge-soft {
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: capitalize;
+}
+
+.badge-soft-success {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.badge-soft-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-soft-danger {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-soft-info {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-soft-secondary {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+/* --- Nút hành động --- */
+.btn-action-view {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #d1fae5; 
+    color: #059669;
+    border: none;
+    transition: all 0.2s;
+}
+
+.btn-action-view:hover {
+    background-color: #059669; /* Nền khi di chuột */
+    color: white;
+    transform: scale(1.1);
+}
