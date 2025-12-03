@@ -54,50 +54,81 @@ export default function OrderPage() {
     detail: "",
     note: "",
   });
+  const [selectedAddressId, setSelectedAddressId] = useState("");
 
   useEffect(() => {
     dispatch(fetchProvinces());
   }, [dispatch]);
 
   useEffect(() => {
-    // Tự động điền thông tin người nhận hàng từ thông tin user đã đăng nhập
-    if (isAuthenticated && user) {
-      setCustomerInfo({
-        name: user.fullName || "",
-        email: user.email || "",
-        phone: user.phoneNumber || "",
-      });
+    if (!isAuthenticated || !user) return;
 
+    // fill thông tin khách
+    setCustomerInfo({
+      name: user.fullName || "",
+      email: user.email || "",
+      phone: user.phoneNumber || "",
+    });
+
+    // ưu tiên dùng list addresses
+    let addr = null;
+
+    if (user.addresses && user.addresses.length > 0) {
+      const def = user.addresses.find((a) => a.isDefault) || user.addresses[0];
+      addr = def;
+      setSelectedAddressId(def._id); // chọn sẵn trong dropdown
+    } else if (user.address) {
+      // fallback: dữ liệu cũ chỉ có 1 address
+      addr = {
+        fullName: user.fullName,
+        phoneNumber: user.phoneNumber,
+        streetAddress: user.address.streetAddress,
+        province: user.address.province,
+        district: user.address.district,
+        ward: user.address.ward,
+      };
+    }
+
+    if (addr) {
       setReceiverInfo((prev) => ({
         ...prev,
-        receiverName: user.fullName || "",
-        receiverPhone: user.phoneNumber || "",
-        detail: user.address?.streetAddress || "",
-      }));
-      if (user.address) {
-        const { province, district, ward } = user.address;
+        receiverName: addr.fullName || user.fullName || "",
+        receiverPhone: addr.phoneNumber || user.phoneNumber || "",
+        detail: addr.streetAddress || "",
+      })); // fill tên, sđt, chi tiết
 
-        // Dispatch để cập nhật Tỉnh/Thành phố vào Redux
-        // Component AddressSelector sẽ dựa vào đây để hiển thị
-        if (province) {
-          dispatch(
-            updateShippingInfo({ field: "provinceName", value: province })
-          );
-        }
-        // Tương tự cho Quận/Huyện và Phường/Xã
-        if (district) {
-          dispatch(
-            updateShippingInfo({ field: "districtName", value: district })
-          );
-        }
-        if (ward) {
-          dispatch(updateShippingInfo({ field: "wardName", value: ward }));
-        }
-        // Ghi chú: Component AddressSelector của bạn cần được thiết kế để
-        // có thể nhận và hiển thị các giá trị mặc định này.
-      }
+      dispatch(
+        updateShippingInfo({
+          field: "provinceCode",
+          value: addr.provinceCode || "",
+        })
+      );
+      dispatch(
+        updateShippingInfo({
+          field: "provinceName",
+          value: addr.province || "",
+        })
+      );
+      dispatch(
+        updateShippingInfo({
+          field: "districtCode",
+          value: addr.districtCode || "",
+        })
+      );
+      dispatch(
+        updateShippingInfo({
+          field: "districtName",
+          value: addr.district || "",
+        })
+      );
+      dispatch(
+        updateShippingInfo({ field: "wardCode", value: addr.wardCode || "" })
+      );
+      dispatch(
+        updateShippingInfo({ field: "wardName", value: addr.ward || "" })
+      );
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, dispatch]);
 
   // Kiểm tra nếu không có sản phẩm thì quay về giỏ hàng
   useEffect(() => {
@@ -241,6 +272,66 @@ export default function OrderPage() {
             <Card className="mb-4 shadow-sm">
               <Card.Header as="h5">Thông tin nhận hàng</Card.Header>
               <Card.Body>
+                {/* dropdown chọn địa chỉ có sẵn */}
+                {isAuthenticated &&
+                  user?.addresses &&
+                  user.addresses.length > 0 && (
+                    <Form.Group className="mb-3">
+                      <Form.Label>Chọn địa chỉ có sẵn</Form.Label>
+                      <Form.Select
+                        value={selectedAddressId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedAddressId(id);
+
+                          const addr = user.addresses.find((a) => a._id === id);
+                          if (!addr) return;
+
+                          // Cập nhật tên + sđt + chi tiết
+                          setReceiverInfo((prev) => ({
+                            ...prev,
+                            receiverName: addr.fullName || "",
+                            receiverPhone: addr.phoneNumber || "",
+                            detail: addr.streetAddress || "",
+                          }));
+
+                          // Cập nhật tỉnh / quận / phường cho AddressSelector (qua redux)
+                          if (addr.province) {
+                            dispatch(
+                              updateShippingInfo({
+                                field: "provinceName",
+                                value: addr.province,
+                              })
+                            );
+                          }
+                          if (addr.district) {
+                            dispatch(
+                              updateShippingInfo({
+                                field: "districtName",
+                                value: addr.district,
+                              })
+                            );
+                          }
+                          if (addr.ward) {
+                            dispatch(
+                              updateShippingInfo({
+                                field: "wardName",
+                                value: addr.ward,
+                              })
+                            );
+                          }
+                        }}
+                      >
+                        {user.addresses.map((addr) => (
+                          <option key={addr._id} value={addr._id}>
+                            {addr.fullName} - {addr.streetAddress}, {addr.ward},{" "}
+                            {addr.district}, {addr.province}
+                            {addr.isDefault ? " (mặc định)" : ""}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  )}
                 <Form.Group className="mb-3">
                   <Form.Label>
                     Tên người nhận <span className="text-danger">*</span>
@@ -266,7 +357,7 @@ export default function OrderPage() {
                     required
                   />
                 </Form.Group>
-                <AddressSelector />
+                <AddressSelector key={`addr-${selectedAddressId || "none"}`} />
                 <Form.Group className="mt-3">
                   <Form.Label>
                     Địa chỉ chi tiết (Số nhà, tên đường...){" "}

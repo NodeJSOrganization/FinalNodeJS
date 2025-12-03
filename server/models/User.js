@@ -35,15 +35,18 @@ const UserSchema = new mongoose.Schema(
       streetAddress: { type: String },
     },
     addresses: [
-        {
-            fullName: { type: String },
-            phoneNumber: { type: String },
-            province: { type: String },
-            district: { type: String },
-            ward: { type: String },
-            streetAddress: { type: String },
-            isDefault: { type: Boolean, default: false },
-        },
+      {
+        fullName: String,
+        phoneNumber: String,
+        province: String,
+        provinceCode: String,  
+        district: String,
+        districtCode: String,  
+        ward: String,
+        wardCode: String,       
+        streetAddress: String,
+        isDefault: { type: Boolean, default: false },
+      },
     ],
     dateOfBirth: {
         type: String, // lưu dạng "YYYY-MM-DD"
