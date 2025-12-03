@@ -58,11 +58,18 @@ const Home = () => {
 
         dispatch(setProducts(productsResponse.data.data));
 
+        // const dynamicCategories = categoriesResponse.data.data
+        //   .filter((cat) => cat.status === "active")
+        //   .map((cat) => ({ key: cat.name, label: cat.name }));
+
         setCategories(
-          categoriesResponse.data.data
-            .filter((cat) => cat.status === "active")
-            .slice(0, 3)
+          categoriesResponse.data.data.filter((cat) => cat.status === "active")
         );
+
+        // setCategories([
+        //   { key: "all", label: "Tất cả sản phẩm" },
+        //   ...dynamicCategories,
+        // ]);
 
         setBrands(brandsResponse.data.data);
         setBestSellers(bestSellersResponse.data.data);
@@ -77,6 +84,8 @@ const Home = () => {
 
     fetchHomeData();
   }, [dispatch]);
+
+  // console.log("Categories on Home Page:", categories);
 
   const filteredProductsByTab = useMemo(() => {
     if (activeTab === "all") return allProducts;
