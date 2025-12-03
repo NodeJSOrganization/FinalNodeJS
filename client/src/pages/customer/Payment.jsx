@@ -36,11 +36,11 @@ const paymentMethods = [
   //   name: "Ví điện tử Momo",
   //   description: "Thanh toán an toàn và nhanh chóng qua ứng dụng Momo.",
   // },
-  {
-    id: "vnpay",
-    name: "Cổng thanh toán VNPAY",
-    description: "Hỗ trợ thẻ ATM nội địa, thẻ quốc tế Visa, Master, JCB.",
-  },
+  // {
+  //   id: "vnpay",
+  //   name: "Cổng thanh toán VNPAY",
+  //   description: "Hỗ trợ thẻ ATM nội địa, thẻ quốc tế Visa, Master, JCB.",
+  // },
 ];
 
 export default function PaymentPage() {
