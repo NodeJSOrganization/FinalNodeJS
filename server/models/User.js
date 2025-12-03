@@ -34,9 +34,25 @@ const UserSchema = new mongoose.Schema(
       ward: { type: String },
       streetAddress: { type: String },
     },
+    addresses: [
+        {
+            fullName: { type: String },
+            phoneNumber: { type: String },
+            province: { type: String },
+            district: { type: String },
+            ward: { type: String },
+            streetAddress: { type: String },
+            isDefault: { type: Boolean, default: false },
+        },
+    ],
+    dateOfBirth: {
+        type: String, // lưu dạng "YYYY-MM-DD"
+    },
     password: {
       type: String,
-      required: [true, "Vui lòng nhập mật khẩu"],
+      required: function () {
+        return this.authProvider === "local";
+      },
       minlength: 6,
       select: false,
     },
@@ -59,6 +75,16 @@ const UserSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // Thông tin xác thực từ nhà cung cấp bên thứ ba (Social Login)
+    authProvider: {
+      type: String,
+      enum: ["local", "google", "facebook"],
+      default: "local",
+    },
+    authProviderId: {
+      type: String, // lưu sub/id từ Google/Facebook
+    },
+    //
     emailVerificationToken: String,
     emailVerificationExpires: Date,
     resetPasswordToken: String,

@@ -17,6 +17,7 @@ export default function AccountProfileEdit({
   const [draft, setDraft] = useState(initialProfile);
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
 
   // Tách riêng phần chọn DOB để thao tác
   const [dobParts, setDobParts] = useState({ day: "", month: "", year: "" });
@@ -27,6 +28,7 @@ export default function AccountProfileEdit({
     setDraft(initialProfile);
     setPreviewUrl("");
     setError("");
+    setAvatarFile(null);
     // Parse YYYY-MM-DD -> year, month, day
     if (initialProfile?.dateOfBirth) {
       const [y, m, d] = String(initialProfile.dateOfBirth).split("-");
@@ -117,6 +119,7 @@ export default function AccountProfileEdit({
     const dataUrl = await fileToDataUrl(file);
     setPreviewUrl(dataUrl);
     setDraft((d) => ({ ...d, avatarUrl: dataUrl }));
+    setAvatarFile(file);
   };
 
   const validate = () => {
@@ -143,7 +146,7 @@ export default function AccountProfileEdit({
       return;
     }
     setError("");
-    onSave(draft);
+    onSave({ ...draft, avatarFile });
   };
 
   const handleUsePoints = () => {

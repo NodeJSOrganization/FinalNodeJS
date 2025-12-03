@@ -1,6 +1,8 @@
 // src/components/account/AccountSidebar.jsx
 import { Card, ListGroup } from "react-bootstrap";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { logout } from "../../../features/auth/authSlice";
 
 const items = [
   { to: "profile", label: "Hồ sơ", icon: "bi bi-person-fill" },
@@ -13,12 +15,14 @@ const items = [
   },
 ];
 
-export default function AccountSidebar({ sticky = false, onLogout }) {
+export default function AccountSidebar({ sticky = false }) {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const handleLogout = (e) => {
     e.preventDefault();
-    if (typeof onLogout === "function") return onLogout();
-    // fallback nếu bạn chưa truyền onLogout từ trên
-    window.location.href = "/logout";
+    dispatch(logout()); // giống Header
+    navigate("/home"); // điều hướng về trang chủ (hoặc "/login" tuỳ bạn)
   };
 
   return (
@@ -31,7 +35,6 @@ export default function AccountSidebar({ sticky = false, onLogout }) {
         <strong>Tài khoản của tôi</strong>
       </Card.Header>
 
-      {/* Danh sách mục – phần này có thể cuộn khi dài */}
       <ListGroup
         variant="flush"
         as="nav"
@@ -53,7 +56,6 @@ export default function AccountSidebar({ sticky = false, onLogout }) {
         ))}
       </ListGroup>
 
-      {/* Khối dưới cùng: có spacer rồi mới tới Đăng xuất, cả cụm ghim đáy */}
       <div className="mt-auto">
         <div className="sidebar-gap" aria-hidden="true" />
         <ListGroup variant="flush" className="border-top">

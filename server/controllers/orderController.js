@@ -11,6 +11,21 @@ const currency = (v) =>
     v
   );
 
+
+// Helper function: Hoàn trả lại tồn kho khi hủy đơn
+async function restoreStock(orderItems) {
+    for (const item of orderItems) {
+        const product = await Product.findById(item.product);
+        if (product) {
+            const variant = product.variants.id(item.variant._id);
+            if (variant) {
+                variant.quantity += item.quantity;
+                await product.save();
+            }
+        }
+    }
+}
+
 const VND_PER_POINT = 1000;
 
 /**
@@ -339,15 +354,60 @@ exports.getAllOrders = async (req, res) => {
  * @route   GET /api/v1/orders/myorders
  * @access  Private
  */
+const mapOrderToClient = (orderDoc) => {
+  const o = orderDoc.toObject();
+
+  const statusMap = {
+    pending: "PENDING",
+    confirmed: "READY",
+    shipping: "SHIPPING",
+    delivered: "COMPLETED",
+    cancelled: "CANCELED",
+  };
+
+  return {
+    _id: o._id,
+    orderId: "#" + o._id.toString().slice(-6).toUpperCase(), // giống email
+    status: statusMap[o.currentStatus] || "PENDING",
+    createdAt: o.createdAt,
+    paymentMethod: o.paymentMethod, // hoặc format lại nếu muốn
+
+    shippingFee: o.summary?.shippingFee || 0,
+    couponCode: o.appliedVoucher?.code || null,
+    couponDiscount: o.summary?.voucherDiscount || 0,
+    pointsUsed: o.usedPoints || 0,
+
+    recipient: {
+      name: o.shippingInfo?.receiverName || "",
+      phone: o.shippingInfo?.receiverPhone || "",
+      address: o.shippingInfo?.fullAddress || "",
+    },
+
+    items: (o.items || []).map((item) => ({
+      productId: item.product,
+      variantId: item.variant?._id,
+      image: item.variant?.image,
+      name: item.variant?.name,
+      variant: item.variant?.variantName,
+      qty: item.quantity,
+      priceOriginal: item.variant?.price,
+      discount: 0, // hiện chưa có discount theo item -> set 0
+    })),
+  };
+};
+
 exports.getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user.id }).sort({
       createdAt: -1,
     });
+
+    const clientOrders = orders.map(mapOrderToClient);
+
     res.status(200).json({
       success: true,
-      count: orders.length,
-      data: orders,
+      count: clientOrders.length,
+      data: clientOrders,
     });
   } catch (error) {
     console.error("Lỗi khi lấy đơn hàng của tôi:", error);
@@ -386,5 +446,168 @@ exports.getOrderById = async (req, res) => {
   } catch (error) {
     console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
     res.status(500).json({ success: false, msg: "Lỗi Server" });
+  }
+};
+
+/**
+ * @desc    Cập nhật trạng thái đơn hàng (Admin)
+ * @route   PUT /api/v1/orders/:id
+ * @access  Private/Admin
+ */
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const { status } = req.body; // status gửi lên: 'confirmed', 'shipping', 'delivered', 'cancelled'
+        
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, msg: 'Không tìm thấy đơn hàng' });
+        }
+
+        // Nếu đơn hàng đã bị hủy trước đó, không cho phép cập nhật lại trạng thái khác (trừ khi code logic phức tạp hơn)
+        if (order.currentStatus === 'cancelled') {
+             return res.status(400).json({ success: false, msg: 'Đơn hàng này đã bị hủy, không thể thay đổi trạng thái.' });
+        }
+
+        // Cập nhật mảng lịch sử trạng thái
+        order.statusHistory.push({
+            status: status,
+            timestamp: Date.now()
+        });
+
+        // Schema của bạn có middleware pre('save') để tự cập nhật `currentStatus` dựa trên phần tử cuối của statusHistory
+        // nên ta chỉ cần save() là được.
+
+        // --- QUAN TRỌNG: Xử lý tồn kho ---
+        // Nếu Admin chuyển trạng thái thành 'cancelled' (Hủy đơn), ta phải cộng lại số lượng vào kho
+        if (status === 'cancelled') {
+            await restoreStock(order.items);
+        }
+
+        await order.save();
+
+        // (Tùy chọn) Gửi email thông báo cho khách hàng về việc thay đổi trạng thái tại đây
+        // await sendEmail(...)
+
+        res.status(200).json({ success: true, data: order });
+
+    } catch (error) {
+        console.error("Lỗi khi cập nhật đơn hàng:", error);
+        res.status(500).json({ success: false, msg: 'Lỗi Server', error: error.message });
+    }
+};
+
+/**
+ * @desc    Xóa đơn hàng (Admin)
+ * @route   DELETE /api/v1/orders/:id
+ * @access  Private/Admin
+ */
+exports.deleteOrder = async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, msg: 'Không tìm thấy đơn hàng' });
+        }
+
+        // Có thể thêm logic: Chỉ cho phép xóa đơn 'pending' hoặc 'cancelled'
+        // if (order.currentStatus !== 'cancelled' && order.currentStatus !== 'pending') {
+        //     return res.status(400).json({ success: false, msg: 'Chỉ có thể xóa đơn hàng đã hủy hoặc đang chờ xử lý.' });
+        // }
+
+        await order.deleteOne();
+
+        res.status(200).json({ success: true, data: {}, msg: "Đã xóa đơn hàng thành công" });
+    } catch (error) {
+        console.error("Lỗi khi xóa đơn hàng:", error);
+        res.status(500).json({ success: false, msg: 'Lỗi Server', error: error.message });
+    }
+};
+
+exports.cancelMyOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, msg: "Không tìm thấy đơn hàng" });
+    }
+
+    // Chỉ cho chủ đơn hủy
+    if (!order.user || order.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        msg: "Bạn không có quyền hủy đơn hàng này",
+      });
+    }
+
+    // Chỉ cho phép hủy khi đang chờ xác nhận
+    if (order.currentStatus !== "pending") {
+      return res.status(400).json({
+        success: false,
+        msg: "Chỉ có thể hủy đơn hàng đang chờ xác nhận",
+      });
+    }
+
+    // Thêm trạng thái cancelled vào statusHistory
+    order.statusHistory.push({ status: "cancelled" });
+    await order.save(); // pre('save') sẽ tự cập nhật currentStatus
+
+    const clientOrder = mapOrderToClient(order);
+
+    return res.status(200).json({
+      success: true,
+      data: clientOrder,
+    });
+  } catch (error) {
+    console.error("Lỗi khi hủy đơn hàng:", error);
+    return res
+      .status(500)
+      .json({ success: false, msg: "Lỗi Server khi hủy đơn hàng" });
+  }
+};
+
+// POST /api/v1/orders/check-reorder
+// body: { orderItems: [ { product, variant: { _id }, quantity } ] }
+exports.checkReorderStock = async (req, res) => {
+  try {
+    const { orderItems } = req.body;
+
+    if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Không có sản phẩm nào để kiểm tra" });
+    }
+
+    for (const item of orderItems) {
+      const productId = item.product?._id || item.product;
+      const product = await Product.findById(productId);
+
+      if (!product) {
+        throw new Error("Sản phẩm không tồn tại");
+      }
+
+      const variant = product.variants.id(item.variant._id);
+      if (!variant) {
+        throw new Error(
+          `Biến thể cho sản phẩm ${product.name} không tồn tại.`
+        );
+      }
+
+      if (variant.quantity < item.quantity) {
+        throw new Error(
+          `Sản phẩm "${product.name} - ${variant.variantName}" không đủ số lượng tồn kho (chỉ còn ${variant.quantity}).`
+        );
+      }
+    }
+
+    // nếu qua hết vòng for thì ok
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Lỗi check-reorder:", error);
+    return res
+      .status(400)
+      .json({ success: false, msg: error.message || "Không đủ tồn kho" });
   }
 };

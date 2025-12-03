@@ -1,4 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { updateMe } from "../../../api/accountApi";
+import { updateUserInState } from "../../../../features/auth/authSlice";
 import {
   Button,
   Card,
@@ -10,37 +13,7 @@ import {
   Alert,
 } from "react-bootstrap";
 
-//--- Demo dữ liệu ban đầu ---
-const demoAddresses = [
-  // {
-  //   id: 1,
-  //   fullName: "Lê Công Tuấn",
-  //   phone: "+84 918 047 901",
-  //   address: "136/42/13, Nguyễn Thị Tần, Phường 2, Quận 8, TP. Hồ Chí Minh",
-  //   isDefault: true,
-  // },
-  // {
-  //   id: 2,
-  //   fullName: "Đoàn Cẩm Thúy",
-  //   phone: "+84 359 514 253",
-  //   address: "Số 111, Đường 47, Phường Tân Quy, Quận 7, TP. Hồ Chí Minh",
-  //   isDefault: false,
-  // },
-];
-
-// Dữ liệu chọn Tỉnh/Quận/Phường (demo tối thiểu)
-const VN_DATA = {
-  "TP. Hồ Chí Minh": {
-    "Quận 7": ["Phường Tân Quy", "Phường Tân Phú", "Phường Bình Thuận"],
-    "Quận 8": ["Phường 2", "Phường 3", "Phường 4"],
-  },
-  "Hà Nội": {
-    "Quận Ba Đình": ["Phường Kim Mã", "Phường Giảng Võ"],
-    "Quận Hoàn Kiếm": ["Phường Tràng Tiền", "Phường Cửa Đô  ng"],
-  },
-};
-
-// Tạo id tăng dần đơn giản cho demo
+// Tạo id tăng dần đơn giản cho demo (hiện tại chỉ dùng 1 địa chỉ)
 function nextId(list) {
   return (list?.reduce((m, i) => Math.max(m, i.id), 0) || 0) + 1;
 }
@@ -121,17 +94,33 @@ function AddressLine({ item, onSetDefault, onEdit, onDelete }) {
   );
 }
 
-function AddressForm({ draft, setDraft, onSubmit, onCancel, mode = "create" }) {
+function AddressForm({
+  draft,
+  setDraft,
+  onSubmit,
+  onCancel,
+  mode = "create",
+  vnData,
+}) {
   const [error, setError] = useState("");
 
-  const provinces = useMemo(() => Object.keys(VN_DATA), []);
+  // vnData có dạng:
+  // { "Thành phố Hà Nội": { "Quận Ba Đình": ["Phường A", "Phường B", ...], ... }, ... }
+
+  const provinces = useMemo(
+    () => (vnData ? Object.keys(vnData) : []),
+    [vnData]
+  );
+
   const districts = useMemo(() => {
-    return draft.province ? Object.keys(VN_DATA[draft.province] || {}) : [];
-  }, [draft.province]);
+    if (!draft.province || !vnData) return [];
+    return Object.keys(vnData[draft.province] || {});
+  }, [draft.province, vnData]);
+
   const wards = useMemo(() => {
-    if (!draft.province || !draft.district) return [];
-    return VN_DATA[draft.province]?.[draft.district] || [];
-  }, [draft.province, draft.district]);
+    if (!draft.province || !draft.district || !vnData) return [];
+    return vnData[draft.province]?.[draft.district] || [];
+  }, [draft.province, draft.district, vnData]);
 
   const validate = () => {
     if (!draft.fullName.trim()) return "Vui lòng nhập tên người nhận.";
@@ -310,14 +299,81 @@ function AddressForm({ draft, setDraft, onSubmit, onCancel, mode = "create" }) {
   );
 }
 
-export default function AccountAddress({ initial = demoAddresses }) {
-  const [addresses, setAddresses] = useState(initial);
+const mapUserAddressesToState = (user) => {
+  const list = Array.isArray(user?.addresses) ? user.addresses : [];
+
+  if (list.length === 0) return [];
+
+  return list.map((addr, index) => ({
+    id: addr._id || index + 1,
+    fullName: addr.fullName || user.fullName || "",
+    phone: addr.phoneNumber || user.phoneNumber || "",
+    address: [addr.streetAddress, addr.ward, addr.district, addr.province]
+      .filter(Boolean)
+      .join(", "),
+    houseNumber: addr.streetAddress || "",
+    province: addr.province || "",
+    district: addr.district || "",
+    ward: addr.ward || "",
+    isDefault: !!addr.isDefault,
+  }));
+};
+
+export default function AccountAddress() {
+  const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
+
+  const [addresses, setAddresses] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState(emptyForm);
   const [mode, setMode] = useState("create"); // "create" | "edit"
 
+  // Dữ liệu tỉnh/thành từ API
+  const [vnData, setVnData] = useState(null);
+  const [locLoading, setLocLoading] = useState(true);
+  const [locError, setLocError] = useState("");
+
+  // Fetch danh sách tỉnh/thành/quận/phường từ API public
+  useEffect(() => {
+    const fetchVNData = async () => {
+      try {
+        setLocLoading(true);
+        setLocError("");
+
+        const res = await fetch("https://provinces.open-api.vn/api/?depth=3");
+        if (!res.ok) {
+          throw new Error("Failed to fetch provinces");
+        }
+        const provinces = await res.json();
+
+        const map = {};
+        provinces.forEach((p) => {
+          const districtMap = {};
+          (p.districts || []).forEach((d) => {
+            districtMap[d.name] = (d.wards || []).map((w) => w.name);
+          });
+          map[p.name] = districtMap;
+        });
+
+        setVnData(map);
+      } catch (e) {
+        console.error(e);
+        setLocError("Không tải được danh sách tỉnh/thành. Vui lòng thử lại.");
+      } finally {
+        setLocLoading(false);
+      }
+    };
+
+    fetchVNData();
+  }, []);
+
+  // Khi user thay đổi -> map địa chỉ từ user.address sang state local
+  useEffect(() => {
+    if (!user) return;
+    setAddresses(mapUserAddressesToState(user));
+  }, [user]);
+
   const sorted = useMemo(() => {
-    // Luôn đưa mặc định lên trên
     return [...addresses].sort(
       (a, b) => Number(b.isDefault) - Number(a.isDefault)
     );
@@ -335,24 +391,88 @@ export default function AccountAddress({ initial = demoAddresses }) {
     setShowForm((v) => !v);
   };
 
-  const handleSubmit = (data) => {
-    if (mode === "create") {
-      const payload = { ...data, id: nextId(addresses) };
-      setAddresses((prev) => [payload, ...prev]);
+  const handleSubmit = async (data) => {
+    let newList;
+
+    if (mode === "edit") {
+      // Cập nhật địa chỉ có id trùng với data.id
+      newList = addresses.map((item) =>
+        item.id === data.id ? { ...item, ...data } : item
+      );
     } else {
-      setAddresses((prev) =>
-        prev.map((x) => (x.id === data.id ? { ...x, ...data } : x))
+      // Thêm địa chỉ mới
+      const newId = nextId(addresses);
+      const isDefault = addresses.length === 0; // địa chỉ đầu tiên mặc định
+      newList = [
+        ...addresses,
+        {
+          ...data,
+          id: newId,
+          isDefault,
+        },
+      ];
+    }
+
+    // Build payload cho backend: mảng addresses
+    const addressesPayload = newList.map((item) => ({
+      fullName: item.fullName,
+      phoneNumber: item.phone,
+      streetAddress: item.houseNumber,
+      ward: item.ward,
+      district: item.district,
+      province: item.province,
+      isDefault: item.isDefault,
+    }));
+
+    try {
+      const res = await updateMe({ addresses: addressesPayload });
+      const updatedUser = res.data.data;
+
+      dispatch(updateUserInState(updatedUser));
+
+      // Remap lại từ user trả về để đồng bộ _id, isDefault, v.v.
+      setAddresses(mapUserAddressesToState(updatedUser));
+      resetForm();
+    } catch (err) {
+      alert(
+        err?.response?.data?.msg ||
+          err?.response?.data?.message ||
+          "Lưu địa chỉ thất bại."
       );
     }
-    resetForm();
   };
 
-  const handleSetDefault = (id) => {
-    setAddresses((prev) => prev.map((x) => ({ ...x, isDefault: x.id === id })));
+  const handleSetDefault = async (id) => {
+    const newList = addresses.map((x) => ({
+      ...x,
+      isDefault: x.id === id,
+    }));
+
+    const addressesPayload = newList.map((item) => ({
+      fullName: item.fullName,
+      phoneNumber: item.phone,
+      streetAddress: item.houseNumber,
+      ward: item.ward,
+      district: item.district,
+      province: item.province,
+      isDefault: item.isDefault,
+    }));
+
+    try {
+      const res = await updateMe({ addresses: addressesPayload });
+      const updatedUser = res.data.data;
+      dispatch(updateUserInState(updatedUser));
+      setAddresses(mapUserAddressesToState(updatedUser));
+    } catch (err) {
+      alert(
+        err?.response?.data?.msg ||
+          err?.response?.data?.message ||
+          "Cập nhật địa chỉ mặc định thất bại."
+      );
+    }
   };
 
   const handleEdit = (item) => {
-    // Nếu item chưa có trường tách sẵn thì parse từ chuỗi address
     const parsed =
       item.houseNumber || item.ward || item.district || item.province
         ? {}
@@ -363,16 +483,48 @@ export default function AccountAddress({ initial = demoAddresses }) {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const target = addresses.find((x) => x.id === id);
     if (!target) return;
     if (!window.confirm("Bạn có chắc muốn xóa địa chỉ này?")) return;
-    setAddresses((prev) => prev.filter((x) => x.id !== id));
+
+    let newList = addresses.filter((x) => x.id !== id);
+
+    // Đảm bảo vẫn có 1 địa chỉ mặc định nếu còn địa chỉ
+    if (newList.length > 0 && !newList.some((a) => a.isDefault)) {
+      newList[0].isDefault = true;
+    }
+
+    const addressesPayload = newList.map((item) => ({
+      fullName: item.fullName,
+      phoneNumber: item.phone,
+      streetAddress: item.houseNumber,
+      ward: item.ward,
+      district: item.district,
+      province: item.province,
+      isDefault: item.isDefault,
+    }));
+
+    try {
+      const res = await updateMe({ addresses: addressesPayload });
+      const updatedUser = res.data.data;
+      dispatch(updateUserInState(updatedUser));
+      setAddresses(mapUserAddressesToState(updatedUser));
+    } catch (err) {
+      alert(
+        err?.response?.data?.msg ||
+          err?.response?.data?.message ||
+          "Xóa địa chỉ thất bại."
+      );
+    }
   };
+
+  if (locLoading) {
+    return <div className="account-page">Đang tải danh sách tỉnh/thành...</div>;
+  }
 
   return (
     <div className="account-page">
-      {/* Header */}
       <div className="d-flex align-items-center justify-content-between mb-3">
         <h5 className="mb-0">Địa chỉ của tôi</h5>
         <Button variant="danger" onClick={handleCreateClick}>
@@ -380,7 +532,12 @@ export default function AccountAddress({ initial = demoAddresses }) {
         </Button>
       </div>
 
-      {/* Form thêm/cập nhật */}
+      {locError && (
+        <Alert variant="danger" className="py-2">
+          {locError}
+        </Alert>
+      )}
+
       {showForm && (
         <AddressForm
           draft={draft}
@@ -388,10 +545,10 @@ export default function AccountAddress({ initial = demoAddresses }) {
           onSubmit={handleSubmit}
           onCancel={resetForm}
           mode={mode}
+          vnData={vnData}
         />
       )}
 
-      {/* Danh sách địa chỉ */}
       {sorted.length === 0 ? (
         <Alert variant="light" className="border" style={{ minHeight: 220 }}>
           Bạn chưa có địa chỉ nào.

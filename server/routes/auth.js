@@ -1,10 +1,17 @@
 // routes/auth.js
 const express = require('express');
-const { register, login, verifyEmail,forgotPassword, resetPassword } = require('../controllers/authController');
+const { protect } = require('../middleware/auth');
+const { register, login, verifyEmail,forgotPassword, resetPassword, changePassword, googleLogin, facebookLogin } = require('../controllers/authController');
+
 const router = express.Router();
+
 router.post('/register', register);
 router.post('/login', login);
 router.get('/verifyemail/:token', verifyEmail);
 router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword/:token', resetPassword);
+router.put('/changepassword', protect, changePassword);
+// Social Login Routes
+router.post('/google', googleLogin);
+router.post('/facebook', facebookLogin);
 module.exports = router;

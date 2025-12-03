@@ -18,7 +18,7 @@ const inventoryRoutes = require("./routes/inventory");
 const reviewRoutes = require("./routes/reviews");
 const cartRoutes = require("./routes/cart");
 const orderRoutes = require("./routes/orders");
-
+const dashboardRoutes = require("./routes/dashboard");
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI, {
@@ -46,7 +46,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "https://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
@@ -60,6 +65,7 @@ app.use("/api/v1/inventory", inventoryRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/orders", orderRoutes);
+app.use("/api/v1/dashboard", dashboardRoutes);
 
 const PORT = process.env.PORT || 5000;
 

@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+
+import { updateMe } from "../../../api/accountApi"; // chỉnh path cho đúng
 import { Row, Col, Button, Form, Image, InputGroup } from "react-bootstrap";
 import AccountProfileEdit from "./AccountProfileEdit/index.jsx";
+import { updateUserInState } from "../../../../features/auth/authSlice.js"; // chỉnh path cho đúng
 
 function getInitials(name = "") {
   return name
@@ -11,14 +15,14 @@ function getInitials(name = "") {
     .join("");
 }
 
-const initialProfile = {
+const emptyProfile = {
   avatarUrl: "",
-  fullName: "Nguyễn Văn A",
-  email: "nguyenvana@example.com",
-  phone: "0901234567",
-  loyaltyPoints: 1250,
-  dateOfBirth: "", // YYYY-MM-DD
-  gender: "", // "Nam" | "Nữ" | "Khác" | ""
+  fullName: "",
+  email: "",
+  phone: "",
+  loyaltyPoints: 0,
+  dateOfBirth: "",
+  gender: "",
 };
 
 const formatDate = (d) => {
@@ -28,10 +32,33 @@ const formatDate = (d) => {
 };
 
 export default function AccountProfile() {
-  const [profile, setProfile] = useState(initialProfile);
+  const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth); // lấy user từ Redux
+
+  const [profile, setProfile] = useState(emptyProfile);
   const [isEditing, setIsEditing] = useState(false);
 
   const labelCls = "text-start mb-1 fw-semibold";
+
+  // Khi user trong Redux thay đổi -> map sang profile local
+  useEffect(() => {
+    if (!user) return;
+
+    setProfile({
+      avatarUrl: user.avatar?.url || "",
+      fullName: user.fullName || "",
+      email: user.email || "",
+      phone: user.phoneNumber || "",
+      loyaltyPoints: user.loyaltyPoints || 0,
+      dateOfBirth: user.dateOfBirth || "",
+      gender: user.gender || "",
+    });
+  }, [user]);
+
+  // Fallback: nếu vì lý do gì đó chưa có user (AccountLayout chưa load xong)
+  if (!user) {
+    return <div className="account-page">Đang tải hồ sơ...</div>;
+  }
 
   const handleUsePoints = () => {
     alert(`Bạn có ${profile.loyaltyPoints.toLocaleString()} điểm để sử dụng.`);
@@ -76,9 +103,56 @@ export default function AccountProfile() {
         <AccountProfileEdit
           initialProfile={profile}
           onCancel={() => setIsEditing(false)}
-          onSave={(updated) => {
-            setProfile(updated);
-            setIsEditing(false);
+          onSave={async (updated) => {
+            try {
+              const { avatarFile, ...rest } = updated;
+
+              let res;
+              if (avatarFile) {
+                // Gửi dạng FormData để backend nhận được req.file
+                const formData = new FormData();
+                formData.append("fullName", rest.fullName);
+                formData.append("phoneNumber", rest.phone);
+                formData.append("gender", rest.gender);
+                if (rest.dateOfBirth) {
+                  formData.append("dateOfBirth", rest.dateOfBirth);
+                }
+                formData.append("avatar", avatarFile); // TÊN FIELD 'avatar' trùng upload.single('avatar')
+
+                res = await updateMe(formData); // updateMe sẽ nhận FormData
+              } else {
+                // Không đổi avatar -> gửi JSON như cũ
+                const payload = {
+                  fullName: rest.fullName,
+                  phoneNumber: rest.phone,
+                  gender: rest.gender,
+                  dateOfBirth: rest.dateOfBirth,
+                };
+                res = await updateMe(payload);
+              }
+
+              const updatedUser = res.data.data;
+
+              dispatch(updateUserInState(updatedUser));
+
+              setProfile((prev) => ({
+                ...prev,
+                avatarUrl: updatedUser.avatar?.url || prev.avatarUrl,
+                fullName: updatedUser.fullName || rest.fullName,
+                phone: updatedUser.phoneNumber || rest.phone,
+                gender: updatedUser.gender || rest.gender,
+                dateOfBirth: updatedUser.dateOfBirth || rest.dateOfBirth,
+                loyaltyPoints: updatedUser.loyaltyPoints ?? prev.loyaltyPoints,
+              }));
+
+              setIsEditing(false);
+            } catch (err) {
+              alert(
+                err?.response?.data?.msg ||
+                  err?.response?.data?.message ||
+                  "Cập nhật hồ sơ thất bại."
+              );
+            }
           }}
         />
       </>
