@@ -29,35 +29,35 @@ const AddDiscountPage = () => {
     dispatch(showLoading());
 
     const payload = {
-        code,
-        description,
-        type,
-        value,
-        quantity,
-        status
+      code,
+      description,
+      type,
+      value,
+      quantity,
+      status
     };
 
     try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setError("Phiên đăng nhập đã hết hạn.");
-            dispatch(hideLoading());
-            return;
-        }
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError("Phiên đăng nhập đã hết hạn.");
+        dispatch(hideLoading());
+        return;
+      }
 
-        const config = {
-            headers: { Authorization: `Bearer ${token}` }
-        };
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
 
-        await axios.post('/api/v1/discounts', payload, config);
-        
-        setSuccess('Tạo mã giảm giá thành công! Đang chuyển hướng...');
-        setTimeout(() => navigate('/admin/discounts'), 2000);
+      await axios.post('/api/v1/discounts', payload, config);
+
+      setSuccess('Tạo mã giảm giá thành công! Đang chuyển hướng...');
+      setTimeout(() => navigate('/admin/discounts'), 2000);
 
     } catch (err) {
-        setError(err.response?.data?.msg || 'Tạo mã giảm giá thất bại.');
+      setError(err.response?.data?.msg || 'Tạo mã giảm giá thất bại.');
     } finally {
-        dispatch(hideLoading());
+      dispatch(hideLoading());
     }
   };
 
@@ -68,7 +68,7 @@ const AddDiscountPage = () => {
           <Form onSubmit={handleSubmit}>
             <Card className="card-custom">
               <Card.Header>
-                <Card.Title as="h4"><FaTags className="me-2"/>Tạo Mã giảm giá mới</Card.Title>
+                <Card.Title as="h4"><FaTags className="me-2" />Tạo Mã giảm giá mới</Card.Title>
               </Card.Header>
               <Card.Body>
                 {error && <Alert variant="danger">{error}</Alert>}
@@ -78,10 +78,10 @@ const AddDiscountPage = () => {
                   <Form.Label>Mã giảm giá</Form.Label>
                   <InputGroup>
                     <InputGroup.Text><FaTicketAlt /></InputGroup.Text>
-                    <Form.Control 
-                      type="text" 
-                      placeholder="VD: SALE50K" 
-                      required 
+                    <Form.Control
+                      type="text"
+                      placeholder="VD: SALE50K"
+                      required
                       value={code}
                       onChange={(e) => setCode(e.target.value.toUpperCase())}
                     />
@@ -90,9 +90,9 @@ const AddDiscountPage = () => {
 
                 <Form.Group className="mb-3" controlId="description">
                   <Form.Label>Mô tả</Form.Label>
-                  <Form.Control 
-                    as="textarea" 
-                    rows={2} 
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
                     placeholder="VD: Giảm 50,000đ cho đơn hàng từ 500,000đ"
                     required
                     value={description}
@@ -114,8 +114,8 @@ const AddDiscountPage = () => {
                     <Form.Group className="mb-3" controlId="value">
                       <Form.Label>Giá trị</Form.Label>
                       <InputGroup>
-                        <Form.Control 
-                          type="number" 
+                        <Form.Control
+                          type="number"
                           placeholder={type === 'percent' ? "15" : "50000"}
                           required
                           value={value}
@@ -128,20 +128,44 @@ const AddDiscountPage = () => {
                     </Form.Group>
                   </Col>
                   <Col md={4}>
-                     <Form.Group className="mb-3" controlId="quantity">
-                      <Form.Label>Số lượng</Form.Label>
-                      <Form.Control 
-                        type="number" 
-                        placeholder="VD: 100" 
-                        required
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                      />
-                    </Form.Group>
+                    <Col md={4}>
+                      <Form.Group className="mb-3" controlId="quantity">
+                        <Form.Label>Số lượng</Form.Label>
+                        <Form.Control
+                          type="number"
+                          placeholder="Tối đa 10"
+                          required
+                          min="1"
+                          max="10" // 1. Thêm thuộc tính max HTML5
+                          value={quantity}
+                          onChange={(e) => {
+                            const val = e.target.value;
+
+                            // 2. Logic kiểm tra:
+                            // Nếu xóa hết (rỗng) thì cho phép
+                            if (val === '') {
+                              setQuantity('');
+                            }
+                            // Nếu nhập số > 10 thì ép về 10
+                            else if (parseInt(val) > 10) {
+                              setQuantity('10');
+                            }
+                            // Các trường hợp còn lại (<= 10) thì set bình thường
+                            else {
+                              setQuantity(val);
+                            }
+                          }}
+                        />
+                        {/* Thêm dòng chú thích nhỏ cho người dùng biết */}
+                        <Form.Text className="text-muted">
+                          Giới hạn tối đa 10 mã.
+                        </Form.Text>
+                      </Form.Group>
+                    </Col>
                   </Col>
                 </Row>
-                
-                 <Form.Group className="mb-3" controlId="status">
+
+                <Form.Group className="mb-3" controlId="status">
                   <Form.Label>Trạng thái</Form.Label>
                   <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
                     <option value="active">Hoạt động</option>
@@ -158,11 +182,11 @@ const AddDiscountPage = () => {
             </Card>
           </Form>
         </Col>
-        
+
         <Col md={4}>
           <Card className="card-custom">
             <Card.Header>
-              <Card.Title as="h5"><FaInfoCircle className="me-2"/>Hướng dẫn</Card.Title>
+              <Card.Title as="h5"><FaInfoCircle className="me-2" />Hướng dẫn</Card.Title>
             </Card.Header>
             <Card.Body>
               <Alert variant="info">

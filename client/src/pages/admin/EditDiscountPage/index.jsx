@@ -146,15 +146,40 @@ const EditDiscountPage = () => {
                                         </Form.Group>
                                     </Col>
                                     <Col md={4}>
-                                        <Form.Group className="mb-3" controlId="quantity">
-                                            <Form.Label>Số lượng</Form.Label>
-                                            <Form.Control
-                                                type="number"
-                                                required
-                                                value={quantity}
-                                                onChange={(e) => setQuantity(e.target.value)}
-                                            />
-                                        </Form.Group>
+                                        <Col md={4}>
+                                            <Form.Group className="mb-3" controlId="quantity">
+                                                <Form.Label>Số lượng</Form.Label>
+                                                <Form.Control
+                                                    type="number"
+                                                    placeholder="Tối đa 10"
+                                                    required
+                                                    min="1"
+                                                    max="10" // 1. Thêm thuộc tính max HTML5
+                                                    value={quantity}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+
+                                                        // 2. Logic kiểm tra:
+                                                        // Nếu xóa hết (rỗng) thì cho phép
+                                                        if (val === '') {
+                                                            setQuantity('');
+                                                        }
+                                                        // Nếu nhập số > 10 thì ép về 10
+                                                        else if (parseInt(val) > 10) {
+                                                            setQuantity('10');
+                                                        }
+                                                        // Các trường hợp còn lại (<= 10) thì set bình thường
+                                                        else {
+                                                            setQuantity(val);
+                                                        }
+                                                    }}
+                                                />
+                                                {/* Thêm dòng chú thích nhỏ cho người dùng biết */}
+                                                <Form.Text className="text-muted">
+                                                    Giới hạn tối đa 10 mã.
+                                                </Form.Text>
+                                            </Form.Group>
+                                        </Col>
                                     </Col>
                                 </Row>
                                 <Form.Group className="mb-3" controlId="status">
