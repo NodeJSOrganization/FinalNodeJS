@@ -1,7 +1,7 @@
 // routes/auth.js
 const express = require('express');
 const { protect } = require('../middleware/auth');
-const { register, login, verifyEmail,forgotPassword, resetPassword, changePassword, googleLogin, facebookLogin } = require('../controllers/authController');
+const { register, login, verifyEmail,forgotPassword, resetPassword, changePassword, googleLogin } = require('../controllers/authController');
 
 const router = express.Router();
 
@@ -13,5 +13,4 @@ router.put('/resetpassword/:token', resetPassword);
 router.put('/changepassword', protect, changePassword);
 // Social Login Routes
 router.post('/google', googleLogin);
-router.post('/facebook', facebookLogin);
 module.exports = router;

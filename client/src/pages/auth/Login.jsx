@@ -15,11 +15,7 @@ import {
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux"; // Import hooks của Redux
-import {
-  loginUser,
-  loginWithGoogle,
-  loginWithFacebook,
-} from "../../../features/auth/authSlice";
+import { loginUser, loginWithGoogle } from "../../../features/auth/authSlice";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +24,6 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [socialError, setSocialError] = useState("");
-  const [fbReady, setFbReady] = useState(false);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -74,98 +69,8 @@ const Login = () => {
     }
   }, [user, isSuccess, navigate]);
 
-  useEffect(() => {
-    const appId = import.meta.env.VITE_FACEBOOK_APP_ID;
-    console.log("FACEBOOK_APP_ID =", appId);
-
-    // Nếu thiếu appId thì khỏi làm gì nữa
-    if (!appId) {
-      setSocialError("Chưa cấu hình VITE_FACEBOOK_APP_ID trong .env");
-      return;
-    }
-
-    function initFacebookSDK() {
-      if (!window.FB) return;
-
-      console.log("FB SDK init...");
-      window.FB.init({
-        appId,
-        cookie: true,
-        xfbml: false,
-        version: "v18.0",
-      });
-      setFbReady(true);
-    }
-
-    // SDK đã load sẵn (reload trang v.v.) → init luôn
-    if (window.FB) {
-      initFacebookSDK();
-      return;
-    }
-
-    // Hàm này sẽ được gọi khi sdk.js load xong
-    window.fbAsyncInit = initFacebookSDK;
-
-    // Nếu script đã chèn rồi thì thôi
-    if (document.getElementById("facebook-jssdk")) return;
-
-    // Chèn script SDK
-    (function (d, s, id) {
-      const element = d.getElementsByTagName(s)[0];
-      const js = d.createElement(s);
-      js.id = id;
-      js.src = "https://connect.facebook.net/en_US/sdk.js";
-      js.onerror = () => {
-        console.error("Không load được Facebook SDK");
-        setSocialError(
-          "Không load được Facebook SDK. Kiểm tra mạng / adblock."
-        );
-      };
-      element.parentNode.insertBefore(js, element);
-    })(document, "script", "facebook-jssdk");
-  }, []);
-
   const handleGoogleLogin = () => {
     googleLogin();
-  };
-
-  const handleFacebookLogin = () => {
-    console.log("FB =", window.FB, "fbReady =", fbReady);
-
-    if (!window.FB || !fbReady) {
-      setSocialError(
-        "Facebook SDK chưa sẵn sàng, vui lòng tải lại trang rồi thử lại."
-      );
-      return;
-    }
-
-    window.FB.login(
-      (response) => {
-        if (response.authResponse) {
-          window.FB.api(
-            "/me",
-            {
-              fields: "id,name,email,picture",
-              access_token: accessToken,
-            },
-            (profile) => {
-              const facebookUser = {
-                providerId: profile.id,
-                email: profile.email || "",
-                fullName: profile.name,
-                avatar: profile.picture?.data?.url,
-              };
-
-              setSocialError("");
-              dispatch(loginWithFacebook(facebookUser));
-            }
-          );
-        } else {
-          setSocialError("Bạn đã huỷ đăng nhập Facebook.");
-        }
-      },
-      { scope: "public_profile,email" }
-    );
   };
 
   // Hàm xử lý submit form
@@ -269,15 +174,8 @@ const Login = () => {
             </a>
           </p>
           <div className="d-flex justify-content-center mt-3">
-            <Button
-              variant="outline-primary"
-              className="me-2"
-              onClick={handleGoogleLogin}
-            >
+            <Button variant="outline-primary" onClick={handleGoogleLogin}>
               Login with Google
-            </Button>
-            <Button variant="outline-primary" onClick={handleFacebookLogin}>
-              Login with Facebook
             </Button>
           </div>
         </Col>
