@@ -5,7 +5,7 @@ const {
   getAllOrders,
   getMyOrders,
   getOrderById,
-  updateOrderStatus, 
+  updateOrderStatus,
   deleteOrder,
   cancelMyOrder,
   checkReorderStock,
@@ -15,24 +15,25 @@ const { protect, authorize, protectOptional } = require("../middleware/auth");
 
 const router = express.Router();
 
+// 1. Route gốc: Tạo đơn & Lấy tất cả danh sách
 router
   .route("/")
-  // POST /api/v1/orders -> Tạo đơn hàng mới
   .post(protectOptional, createOrder)
-
-  // GET /api/v1/orders -> Lấy tất cả đơn hàng (chỉ cho admin)
   .get(protect, authorize("admin"), getAllOrders);
 
-// Route để User lấy đơn hàng CỦA MÌNH: GET /api/v1/orders/myorders
-// Yêu cầu đăng nhập (`protect`). Phải đặt trước '/:id'.
+// 2. Các route chức năng phụ (Phải đặt TRƯỚC route /:id để tránh bị nhầm ID)
 router.route("/myorders").get(protect, getMyOrders);
-
-// Route để lấy chi tiết MỘT đơn hàng theo ID: GET /api/v1/orders/:id
-// Yêu cầu đăng nhập (`protect`).
-router.route("/:id").get(protect, getOrderById);
-// Route để hủy đơn hàng của chính mình: PATCH /api/v1/orders/:id/cancel
-router.route("/:id/cancel").patch(protect, cancelMyOrder);
-// check tồn kho cho “mua lại”
 router.route("/check-reorder").post(protect, checkReorderStock);
+
+// 3. Route thao tác trên MỘT đơn hàng cụ thể (Cần ID)
+// ✨ ĐÂY LÀ CHỖ CẦN SỬA ✨
+router
+  .route("/:id")
+  .get(protect, getOrderById) // Xem chi tiết
+  .put(protect, authorize("admin"), updateOrderStatus) // Cập nhật trạng thái (Admin)
+  .delete(protect, authorize("admin"), deleteOrder);   // Xóa đơn (Admin)
+
+// 4. Route hủy đơn (Custom action trên ID)
+router.route("/:id/cancel").patch(protect, cancelMyOrder);
 
 module.exports = router;
