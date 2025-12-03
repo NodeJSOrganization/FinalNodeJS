@@ -209,8 +209,11 @@ exports.updateMe = async (req, res) => {
                         phoneNumber: addr.phoneNumber || "",
                         streetAddress: addr.streetAddress || "",
                         ward: addr.ward || "",
+                        wardCode: addr.wardCode || "",
                         district: addr.district || "",
+                        districtCode: addr.districtCode || "",
                         province: addr.province || "",
+                        provinceCode: addr.provinceCode || "",
                         isDefault,
                     };
                 });
