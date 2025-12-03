@@ -205,6 +205,7 @@ const BrandListPage = () => {
       </Row>
 
       {/* Modal xác nhận xóa 1 brand */}
+      {/* Modal xác nhận xóa 1 brand - ĐÃ CẬP NHẬT */}
       <Modal show={showDeleteModal} onHide={closeDeleteModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Xác nhận xóa</Modal.Title>

@@ -205,22 +205,7 @@ const BrandListPage = () => {
       </Row>
 
       {/* Modal xác nhận xóa 1 brand */}
-      <Modal show={showDeleteModal} onHide={closeDeleteModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Xác nhận xóa</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Bạn có chắc chắn muốn xóa thương hiệu <strong>{brandToDelete?.name}</strong>?
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={closeDeleteModal}>
-            Hủy
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Xóa
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <Modal show={showDeleteModal} onHide={closeDeleteModal} centered>{/* ... */}</Modal>
 
       {/* --- MODAL MỚI CHO VIỆC XÓA TẤT CẢ --- */}
       <Modal show={showDeleteAllModal} onHide={() => setShowDeleteAllModal(false)} centered>

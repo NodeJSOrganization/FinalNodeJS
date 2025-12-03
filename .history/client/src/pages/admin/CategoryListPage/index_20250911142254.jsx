@@ -182,11 +182,6 @@ const CategoryListPage = () => {
     setCategoryToDelete(category);
     setShowDeleteModal(true);
   };
-
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
-
   const handleDelete = async () => {
     if (!categoryToDelete) return;
     try {
